@@ -5,7 +5,9 @@ import '../../models/live_stream.dart';
 import '../../models/cohost.dart';
 import '../../providers/providers.dart';
 import '../../services/cohost_service.dart';
+import '../../widgets/broadcast_scan_button.dart';
 import '../../widgets/danmaku_overlay.dart';
+import '../../widgets/product_drawer.dart';
 import '../../widgets/room_background_selector.dart';
 
 const _agoraAppId = String.fromEnvironment('AGORA_APP_ID', defaultValue: 'YOUR_AGORA_APP_ID');
@@ -368,6 +370,19 @@ class _BroadcastView extends ConsumerWidget {
                 ])),
               )).toList(),
             ),
+          ),
+          // Host-side scan button (bottom right)
+          Positioned(
+            right: 16, bottom: 24,
+            child: BroadcastScanButton(engine: engine, streamId: stream.id),
+          ),
+          // ProductDrawer — host sees the same surface viewers see, with a
+          // dismiss-from-anywhere callback that clears the published products.
+          ProductDrawer(
+            products: liveStream.featuredProducts,
+            featuredAd: liveStream.featuredAd,
+            onClose: () =>
+                ref.read(streamServiceProvider).dismissProducts(stream.id),
           ),
         ],
       ),

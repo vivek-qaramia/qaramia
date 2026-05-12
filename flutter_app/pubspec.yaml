@@ -44,6 +44,7 @@ dependencies:
   google_fonts: ^6.2.1           # Playfair Display for the italic wordmark
   mobile_scanner: ^5.2.3         # barcode + QR scanner (ML Kit under the hood)
   url_launcher: ^6.3.0           # open affiliate / CTA URLs in the system browser
+  path_provider: ^2.1.4          # temp dir for Agora snapshot files
 
   # HTTP
   dio: ^5.7.0
