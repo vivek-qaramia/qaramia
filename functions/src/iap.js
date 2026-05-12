@@ -24,11 +24,11 @@ const APPLE_VERIFY_SANDBOX = 'https://sandbox.itunes.apple.com/verifyReceipt';
 // Mirror of Flutter's CoinPack.catalog. Keep in sync — these are the only
 // product IDs we'll credit, and the coin amounts viewers actually receive.
 const COIN_PACKS = {
-  'com.streamr.streamr.coins.starter': { coins:   100 },
-  'com.streamr.streamr.coins.casual':  { coins:   550 },
-  'com.streamr.streamr.coins.regular': { coins:  1200 },
-  'com.streamr.streamr.coins.power':   { coins:  3300 },
-  'com.streamr.streamr.coins.whale':   { coins: 14000 },
+  'com.qaramia.app.coins.starter': { coins:   100 },
+  'com.qaramia.app.coins.casual':  { coins:   550 },
+  'com.qaramia.app.coins.regular': { coins:  1200 },
+  'com.qaramia.app.coins.power':   { coins:  3300 },
+  'com.qaramia.app.coins.whale':   { coins: 14000 },
 };
 
 // ── Apple receipt validation ─────────────────────────────────────────────────

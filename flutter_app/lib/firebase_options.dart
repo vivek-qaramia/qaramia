@@ -66,7 +66,7 @@ class DefaultFirebaseOptions {
     storageBucket: 'qaramia-4c405.firebasestorage.app',
     androidClientId: '1039533109345-56cr9psv855si8v8fsskg83e5sav3oq3.apps.googleusercontent.com',
     iosClientId: '1039533109345-7hv8v7cr0s5j6b7un89lv527n6k6agmp.apps.googleusercontent.com',
-    iosBundleId: 'com.streamr.streamr',
+    iosBundleId: 'com.qaramia.app',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
@@ -77,7 +77,7 @@ class DefaultFirebaseOptions {
     storageBucket: 'qaramia-4c405.firebasestorage.app',
     androidClientId: '1039533109345-56cr9psv855si8v8fsskg83e5sav3oq3.apps.googleusercontent.com',
     iosClientId: '1039533109345-7hv8v7cr0s5j6b7un89lv527n6k6agmp.apps.googleusercontent.com',
-    iosBundleId: 'com.streamr.streamr',
+    iosBundleId: 'com.qaramia.app',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

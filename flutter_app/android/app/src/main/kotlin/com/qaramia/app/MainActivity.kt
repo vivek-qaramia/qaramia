@@ -1,4 +1,4 @@
-package com.streamr.streamr
+package com.qaramia.app
 
 import io.flutter.embedding.android.FlutterActivity
 

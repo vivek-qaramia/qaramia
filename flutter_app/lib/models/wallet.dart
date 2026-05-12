@@ -73,7 +73,7 @@ class CoinPack {
 
   /// Build the platform-appropriate IAP product ID for a given pack.
   ///
-  /// Convention: `com.streamr.streamr.coins.{packId}` — must be registered
+  /// Convention: `com.qaramia.app.coins.{packId}` — must be registered
   /// in App Store Connect (as a Consumable in-app purchase) AND in
   /// Google Play Console (as a Managed Product / Consumable) with this
   /// exact identifier and the matching priceUsd tier.
@@ -82,38 +82,38 @@ class CoinPack {
         final prefix => '$prefix.$id',
       };
 
-  static const defaultIapPrefix = 'com.streamr.streamr.coins';
+  static const defaultIapPrefix = 'com.qaramia.app.coins';
 
   static const List<CoinPack> catalog = [
     CoinPack(
       id: 'starter', label: 'Starter', priceUsd: 0.99,
       coins: 100, bonusCoins: 0, target: 'First-time buyer',
-      iosProductId: 'com.streamr.streamr.coins.starter',
-      androidProductId: 'com.streamr.streamr.coins.starter',
+      iosProductId: 'com.qaramia.app.coins.starter',
+      androidProductId: 'com.qaramia.app.coins.starter',
     ),
     CoinPack(
       id: 'casual', label: 'Casual', priceUsd: 4.99,
       coins: 500, bonusCoins: 50, target: 'Regular viewer',
-      iosProductId: 'com.streamr.streamr.coins.casual',
-      androidProductId: 'com.streamr.streamr.coins.casual',
+      iosProductId: 'com.qaramia.app.coins.casual',
+      androidProductId: 'com.qaramia.app.coins.casual',
     ),
     CoinPack(
       id: 'regular', label: 'Regular', priceUsd: 9.99,
       coins: 1000, bonusCoins: 200, target: 'Engaged supporter',
-      iosProductId: 'com.streamr.streamr.coins.regular',
-      androidProductId: 'com.streamr.streamr.coins.regular',
+      iosProductId: 'com.qaramia.app.coins.regular',
+      androidProductId: 'com.qaramia.app.coins.regular',
     ),
     CoinPack(
       id: 'power', label: 'Power', priceUsd: 24.99,
       coins: 2500, bonusCoins: 800, target: 'Heavy spender',
-      iosProductId: 'com.streamr.streamr.coins.power',
-      androidProductId: 'com.streamr.streamr.coins.power',
+      iosProductId: 'com.qaramia.app.coins.power',
+      androidProductId: 'com.qaramia.app.coins.power',
     ),
     CoinPack(
       id: 'whale', label: 'Whale', priceUsd: 99.99,
       coins: 10000, bonusCoins: 4000, target: 'Top supporter',
-      iosProductId: 'com.streamr.streamr.coins.whale',
-      androidProductId: 'com.streamr.streamr.coins.whale',
+      iosProductId: 'com.qaramia.app.coins.whale',
+      androidProductId: 'com.qaramia.app.coins.whale',
     ),
   ];
 

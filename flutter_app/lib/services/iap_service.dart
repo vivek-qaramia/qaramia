@@ -145,7 +145,7 @@ class IapService {
   // Mirror the applicationId from android/app/build.gradle.kts. Hardcoded
   // because the Flutter plugin doesn't expose the package name natively
   // until we ship a custom platform channel.
-  static const _androidPackageName = 'com.streamr.streamr';
+  static const _androidPackageName = 'com.qaramia.app';
 
   Future<void> dispose() async {
     await _sub?.cancel();
