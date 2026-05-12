@@ -4,6 +4,11 @@ const { RtcTokenBuilder, RtcRole } = require('agora-token');
 
 admin.initializeApp();
 
+// IAP receipt validation callables (Apple App Store + Google Play)
+const iap = require('./iap');
+exports.validateApplePurchase  = iap.validateApplePurchase;
+exports.validateGooglePurchase = iap.validateGooglePurchase;
+
 // Generate a short-lived Agora RTC token for a channel.
 // Called by both Flutter and Next.js clients before joining a stream.
 exports.getAgoraToken = functions.https.onCall(async (data, context) => {

@@ -6,10 +6,12 @@ import '../../models/chat_message.dart';
 import '../../models/gift.dart';
 import '../../providers/providers.dart';
 import '../../services/cohost_service.dart';
+import '../../services/stream_service.dart' show InsufficientCoinsException;
 import '../../widgets/danmaku_overlay.dart';
 import '../../widgets/gift_panel.dart';
 import '../../widgets/product_drawer.dart';
 import '../../widgets/room_background_selector.dart';
+import '../wallet/wallet_screen.dart';
 
 const _agoraAppId = String.fromEnvironment('AGORA_APP_ID', defaultValue: 'YOUR_AGORA_APP_ID');
 
@@ -135,21 +137,38 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
     final user = ref.read(authStateProvider).valueOrNull;
     if (user == null) return;
     final currentUser = ref.read(currentUserProvider).valueOrNull;
-    await ref.read(streamServiceProvider).sendGift(
-      streamId: widget.stream.id,
-      senderUid: user.uid,
-      senderUsername: currentUser?.username ?? 'viewer',
-      giftType: gift,
-    );
-    // Also send to danmaku
-    await ref.read(danmakuServiceProvider).sendMessage(
-      streamId: widget.stream.id,
-      authorUid: user.uid,
-      authorUsername: currentUser?.username ?? 'viewer',
-      text: 'sent ${gift.emoji} ${gift.name}',
-      type: 'gift',
-    );
-    setState(() => _showGiftPanel = false);
+    try {
+      await ref.read(streamServiceProvider).sendGift(
+        streamId: widget.stream.id,
+        senderUid: user.uid,
+        senderUsername: currentUser?.username ?? 'viewer',
+        recipientUid: widget.stream.hostUid,
+        giftType: gift,
+      );
+      // Fanout to danmaku chat
+      await ref.read(danmakuServiceProvider).sendMessage(
+        streamId: widget.stream.id,
+        authorUid: user.uid,
+        authorUsername: currentUser?.username ?? 'viewer',
+        text: 'sent ${gift.emoji} ${gift.name}',
+        type: 'gift',
+      );
+    } on InsufficientCoinsException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Need ${e.shortfall} more coins'),
+            action: SnackBarAction(
+              label: 'TOP UP',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const WalletScreen()),
+              ),
+            ),
+          ),
+        );
+      }
+    }
+    if (mounted) setState(() => _showGiftPanel = false);
   }
 
   @override

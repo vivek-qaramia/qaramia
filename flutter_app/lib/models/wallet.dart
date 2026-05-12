@@ -71,11 +71,67 @@ class CoinPack {
 
   int get totalCoins => coins + bonusCoins;
 
+  /// Build the platform-appropriate IAP product ID for a given pack.
+  ///
+  /// Convention: `com.streamr.streamr.coins.{packId}` — must be registered
+  /// in App Store Connect (as a Consumable in-app purchase) AND in
+  /// Google Play Console (as a Managed Product / Consumable) with this
+  /// exact identifier and the matching priceUsd tier.
+  String? get productId => switch (defaultIapPrefix) {
+        '' => null,
+        final prefix => '$prefix.$id',
+      };
+
+  static const defaultIapPrefix = 'com.streamr.streamr.coins';
+
   static const List<CoinPack> catalog = [
-    CoinPack(id: 'starter', label: 'Starter', priceUsd:  0.99, coins:   100, bonusCoins:    0, target: 'First-time buyer'),
-    CoinPack(id: 'casual',  label: 'Casual',  priceUsd:  4.99, coins:   500, bonusCoins:   50, target: 'Regular viewer'),
-    CoinPack(id: 'regular', label: 'Regular', priceUsd:  9.99, coins:  1000, bonusCoins:  200, target: 'Engaged supporter'),
-    CoinPack(id: 'power',   label: 'Power',   priceUsd: 24.99, coins:  2500, bonusCoins:  800, target: 'Heavy spender'),
-    CoinPack(id: 'whale',   label: 'Whale',   priceUsd: 99.99, coins: 10000, bonusCoins: 4000, target: 'Top supporter'),
+    CoinPack(
+      id: 'starter', label: 'Starter', priceUsd: 0.99,
+      coins: 100, bonusCoins: 0, target: 'First-time buyer',
+      iosProductId: 'com.streamr.streamr.coins.starter',
+      androidProductId: 'com.streamr.streamr.coins.starter',
+    ),
+    CoinPack(
+      id: 'casual', label: 'Casual', priceUsd: 4.99,
+      coins: 500, bonusCoins: 50, target: 'Regular viewer',
+      iosProductId: 'com.streamr.streamr.coins.casual',
+      androidProductId: 'com.streamr.streamr.coins.casual',
+    ),
+    CoinPack(
+      id: 'regular', label: 'Regular', priceUsd: 9.99,
+      coins: 1000, bonusCoins: 200, target: 'Engaged supporter',
+      iosProductId: 'com.streamr.streamr.coins.regular',
+      androidProductId: 'com.streamr.streamr.coins.regular',
+    ),
+    CoinPack(
+      id: 'power', label: 'Power', priceUsd: 24.99,
+      coins: 2500, bonusCoins: 800, target: 'Heavy spender',
+      iosProductId: 'com.streamr.streamr.coins.power',
+      androidProductId: 'com.streamr.streamr.coins.power',
+    ),
+    CoinPack(
+      id: 'whale', label: 'Whale', priceUsd: 99.99,
+      coins: 10000, bonusCoins: 4000, target: 'Top supporter',
+      iosProductId: 'com.streamr.streamr.coins.whale',
+      androidProductId: 'com.streamr.streamr.coins.whale',
+    ),
   ];
+
+  /// All product IDs registered for the current platform — used to bulk-query
+  /// store metadata via `InAppPurchase.queryProductDetails`.
+  static Set<String> get allProductIds {
+    return catalog
+        .map((p) => p.iosProductId ?? p.androidProductId ?? '')
+        .where((id) => id.isNotEmpty)
+        .toSet();
+  }
+
+  static CoinPack? findByProductId(String productId) {
+    for (final p in catalog) {
+      if (p.iosProductId == productId || p.androidProductId == productId) {
+        return p;
+      }
+    }
+    return null;
+  }
 }

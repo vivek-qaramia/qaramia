@@ -5,6 +5,7 @@ import '../../providers/providers.dart';
 import '../../models/app_user.dart';
 import '../../models/video.dart';
 import '../studio/ads_screen.dart';
+import '../../widgets/wallet_badge.dart';
 
 // Self profile (uses current auth user)
 class ProfileScreenSelf extends ConsumerWidget {
@@ -49,6 +50,10 @@ class ProfileScreen extends ConsumerWidget {
                 title: Text('@${user.username}', style: const TextStyle(fontWeight: FontWeight.bold)),
                 actions: [
                   if (isSelf) ...[
+                    const Padding(
+                      padding: EdgeInsets.only(right: 4),
+                      child: Center(child: WalletBadge()),
+                    ),
                     IconButton(
                       tooltip: 'Manage ads',
                       icon: const Icon(Icons.campaign_outlined),

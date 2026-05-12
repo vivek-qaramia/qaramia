@@ -51,6 +51,14 @@ service cloud.firestore {
           request.resource.data.diamonds >= resource.data.diamonds &&
           request.resource.data.lifetimeDiamonds >= resource.data.lifetimeDiamonds;
       }
+
+      // IAP transaction ledger — server-side only (Cloud Functions credit via
+      // Admin SDK which bypasses these rules). Owner can read their own
+      // purchase history; no client writes allowed.
+      match /iapTransactions/{txId} {
+        allow read: if isOwner(uid);
+        allow write: if false;
+      }
     }
 
     // Videos — public read so the feed loads without signing in

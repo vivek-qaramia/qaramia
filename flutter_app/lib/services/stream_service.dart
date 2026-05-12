@@ -5,6 +5,15 @@ import '../models/gift.dart';
 import '../models/product_info.dart';
 import '../models/ad.dart';
 
+class InsufficientCoinsException implements Exception {
+  final int needed;
+  final int has;
+  int get shortfall => needed - has;
+  const InsufficientCoinsException({required this.needed, required this.has});
+  @override
+  String toString() => 'Insufficient coins: need $needed, have $has';
+}
+
 class StreamService {
   final _db = FirebaseFirestore.instance;
   final _uuid = const Uuid();
@@ -65,31 +74,67 @@ class StreamService {
     });
   }
 
+  /// Send a gift inside a single Firestore transaction:
+  ///   1. Read viewer's wallet
+  ///   2. If insufficient coins → throw [InsufficientCoinsException]
+  ///   3. Decrement viewer wallet.coins
+  ///   4. Increment recipient creatorBalance.diamonds + lifetimeDiamonds
+  ///   5. Create the gift event document
+  ///   6. Update stream.totalGifts (display counter)
+  ///
+  /// All five writes commit atomically — either the gift is sent and the
+  /// balances reflect it, or nothing changes.
   Future<void> sendGift({
     required String streamId,
     required String senderUid,
     required String senderUsername,
+    required String recipientUid,
     required GiftType giftType,
     int quantity = 1,
   }) async {
-    final id = _uuid.v4();
-    final event = GiftEvent(
-      id: id,
-      streamId: streamId,
-      senderUid: senderUid,
-      senderUsername: senderUsername,
-      giftTypeId: giftType.id,
-      quantity: quantity,
-      totalCoins: giftType.coinCost * quantity,
-      sentAt: DateTime.now(),
-    );
-    final batch = _db.batch();
-    batch.set(_db.collection('streams').doc(streamId).collection('gifts').doc(id),
-        event.toJson());
-    batch.update(_db.collection('streams').doc(streamId), {
-      'totalGifts': FieldValue.increment(event.totalCoins),
+    final totalCoins = giftType.coinCost * quantity;
+    final totalDiamonds = giftType.diamondYield * quantity;
+
+    final walletRef = _db.collection('users').doc(senderUid)
+        .collection('wallet').doc('default');
+    final creatorBalRef = _db.collection('users').doc(recipientUid)
+        .collection('creatorBalance').doc('default');
+    final streamRef = _db.collection('streams').doc(streamId);
+    final giftRef = streamRef.collection('gifts').doc(_uuid.v4());
+
+    await _db.runTransaction((txn) async {
+      final walletSnap = await txn.get(walletRef);
+      final current = (walletSnap.data()?['coins'] as num?)?.toInt() ?? 0;
+      if (current < totalCoins) {
+        throw InsufficientCoinsException(needed: totalCoins, has: current);
+      }
+
+      txn.set(walletRef, {
+        'coins': FieldValue.increment(-totalCoins),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      txn.set(creatorBalRef, {
+        'diamonds': FieldValue.increment(totalDiamonds),
+        'lifetimeDiamonds': FieldValue.increment(totalDiamonds),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      final event = GiftEvent(
+        id: giftRef.id,
+        streamId: streamId,
+        senderUid: senderUid,
+        senderUsername: senderUsername,
+        giftTypeId: giftType.id,
+        quantity: quantity,
+        totalCoins: totalCoins,
+        totalDiamondYield: totalDiamonds,
+        sentAt: DateTime.now(),
+      );
+      txn.set(giftRef, event.toJson());
+
+      txn.update(streamRef, {'totalGifts': FieldValue.increment(totalCoins)});
     });
-    await batch.commit();
   }
 
   /// Push the latest detected products + matched ad to all viewers of a stream.
