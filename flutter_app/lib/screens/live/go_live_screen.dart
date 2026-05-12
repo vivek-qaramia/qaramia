@@ -182,7 +182,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: sel ? const Color(0xFFFF4B6E) : Colors.white10,
+                      color: sel ? const Color(0xFFFF7043) : Colors.white10,
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(cat, style: TextStyle(color: sel ? Colors.white : Colors.white70)),
@@ -198,7 +198,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               decoration: BoxDecoration(
                 color: _roomMode ? const Color(0xFF1A0A2E) : Colors.white10,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: _roomMode ? const Color(0xFFFF4B6E) : Colors.transparent),
+                border: Border.all(color: _roomMode ? const Color(0xFFFF7043) : Colors.transparent),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -219,7 +219,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                       Switch(
                         value: _roomMode,
                         onChanged: (v) => setState(() => _roomMode = v),
-                        activeColor: const Color(0xFFFF4B6E),
+                        activeColor: const Color(0xFFFF7043),
                       ),
                     ],
                   ),
@@ -243,7 +243,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 icon: const Icon(Icons.videocam),
                 label: const Text('Start Streaming', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF4B6E),
+                  backgroundColor: const Color(0xFFFF7043),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
               ),
@@ -361,7 +361,7 @@ class _BroadcastView extends ConsumerWidget {
                     text: '${m.authorUsername} ',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: m.type == 'gift' ? const Color(0xFFFFD700) : const Color(0xFF25F4EE),
+                      color: m.type == 'gift' ? const Color(0xFFFFD700) : const Color(0xFFFFD166),
                     ),
                   ),
                   TextSpan(text: m.text, style: const TextStyle(color: Colors.white)),
@@ -453,7 +453,7 @@ class _CoHostInviteSheetState extends ConsumerState<_CoHostInviteSheet> {
                 );
                 if (context.mounted) Navigator.pop(context);
               },
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF4B6E)),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF7043)),
               child: const Text('Invite'),
             ),
           )).toList(),

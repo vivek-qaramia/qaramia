@@ -22,8 +22,8 @@ class LiveDiscoveryScreen extends ConsumerWidget {
               context,
               MaterialPageRoute(builder: (_) => const GoLiveScreen()),
             ),
-            icon: const Icon(Icons.videocam, color: Color(0xFFFF4B6E)),
-            label: const Text('Go Live', style: TextStyle(color: Color(0xFFFF4B6E), fontWeight: FontWeight.bold)),
+            icon: const Icon(Icons.videocam, color: Color(0xFFFF7043)),
+            label: const Text('Go Live', style: TextStyle(color: Color(0xFFFF7043), fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -119,7 +119,7 @@ class _StreamCard extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFF4B6E),
+                  color: const Color(0xFFFF7043),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: const Text('LIVE', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),

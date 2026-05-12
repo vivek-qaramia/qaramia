@@ -84,7 +84,7 @@ class RoomBackgroundSelector extends StatelessWidget {
                       end: Alignment.bottomRight,
                     ),
                     border: Border.all(
-                      color: selected ? const Color(0xFFFF4B6E) : Colors.transparent,
+                      color: selected ? const Color(0xFFFF7043) : Colors.transparent,
                       width: 2,
                     ),
                   ),
@@ -112,7 +112,7 @@ class RoomBackgroundSelector extends StatelessWidget {
                             width: 18,
                             height: 18,
                             decoration: const BoxDecoration(
-                              color: Color(0xFFFF4B6E),
+                              color: Color(0xFFFF7043),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(Icons.check, size: 12, color: Colors.white),

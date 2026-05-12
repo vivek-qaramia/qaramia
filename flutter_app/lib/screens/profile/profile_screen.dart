@@ -134,7 +134,7 @@ class _ProfileHeader extends ConsumerWidget {
                     ref.invalidate(userProfileProvider);
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: isFollowing ? Colors.white10 : const Color(0xFFFF4B6E),
+                    backgroundColor: isFollowing ? Colors.white10 : const Color(0xFFFF7043),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   child: Text(isFollowing ? 'Following' : 'Follow',

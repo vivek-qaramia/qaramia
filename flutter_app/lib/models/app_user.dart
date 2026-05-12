@@ -11,6 +11,11 @@ class AppUser {
   final int likeCount;
   final bool isLive;
   final DateTime createdAt;
+  // ── Demographics (optional, opt-in at signup) ──────────────────────────────
+  final String? ageRange;   // '18-24' | '25-34' | '35-44' | '45+'
+  final String? country;
+  // ── Streamer earnings (estimated, until Stripe Connect payout matures) ────
+  final double estimatedEarningsUsd;
 
   const AppUser({
     required this.uid,
@@ -23,6 +28,9 @@ class AppUser {
     this.likeCount = 0,
     this.isLive = false,
     required this.createdAt,
+    this.ageRange,
+    this.country,
+    this.estimatedEarningsUsd = 0,
   });
 
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
@@ -36,6 +44,9 @@ class AppUser {
         likeCount: (json['likeCount'] as num?)?.toInt() ?? 0,
         isLive: json['isLive'] as bool? ?? false,
         createdAt: (json['createdAt'] as Timestamp).toDate(),
+        ageRange: json['ageRange'] as String?,
+        country: json['country'] as String?,
+        estimatedEarningsUsd: (json['estimatedEarningsUsd'] as num?)?.toDouble() ?? 0,
       );
 
   Map<String, dynamic> toJson() => {
@@ -49,6 +60,9 @@ class AppUser {
         'likeCount': likeCount,
         'isLive': isLive,
         'createdAt': Timestamp.fromDate(createdAt),
+        if (ageRange != null) 'ageRange': ageRange,
+        if (country != null) 'country': country,
+        if (estimatedEarningsUsd > 0) 'estimatedEarningsUsd': estimatedEarningsUsd,
       };
 
   AppUser copyWith({
@@ -59,6 +73,9 @@ class AppUser {
     int? followingCount,
     int? likeCount,
     bool? isLive,
+    String? ageRange,
+    String? country,
+    double? estimatedEarningsUsd,
   }) =>
       AppUser(
         uid: uid,
@@ -71,5 +88,8 @@ class AppUser {
         likeCount: likeCount ?? this.likeCount,
         isLive: isLive ?? this.isLive,
         createdAt: createdAt,
+        ageRange: ageRange ?? this.ageRange,
+        country: country ?? this.country,
+        estimatedEarningsUsd: estimatedEarningsUsd ?? this.estimatedEarningsUsd,
       );
 }

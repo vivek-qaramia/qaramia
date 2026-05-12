@@ -1,10 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+enum GiftTier { standard, premium, whale }
+
 class GiftType {
   final String id;
   final String name;
   final String emoji;
   final int coinCost;
+  final int diamondYield; // creator's diamond reward — 50% of coinCost by default
+  final GiftTier tier;
   final String animationAsset;
 
   const GiftType({
@@ -12,17 +16,28 @@ class GiftType {
     required this.name,
     required this.emoji,
     required this.coinCost,
+    required this.diamondYield,
+    required this.tier,
     required this.animationAsset,
   });
 
   static const List<GiftType> catalog = [
-    GiftType(id: 'rose', name: 'Rose', emoji: '🌹', coinCost: 1, animationAsset: 'rose'),
-    GiftType(id: 'heart', name: 'Heart', emoji: '❤️', coinCost: 5, animationAsset: 'heart'),
-    GiftType(id: 'star', name: 'Star', emoji: '⭐', coinCost: 10, animationAsset: 'star'),
-    GiftType(id: 'rocket', name: 'Rocket', emoji: '🚀', coinCost: 50, animationAsset: 'rocket'),
-    GiftType(id: 'crown', name: 'Crown', emoji: '👑', coinCost: 100, animationAsset: 'crown'),
-    GiftType(id: 'diamond', name: 'Diamond', emoji: '💎', coinCost: 500, animationAsset: 'diamond'),
-    GiftType(id: 'universe', name: 'Universe', emoji: '🌌', coinCost: 1000, animationAsset: 'universe'),
+    // Standard tier
+    GiftType(id: 'rose',      name: 'Rose',      emoji: '🌹', coinCost: 1,     diamondYield: 0,     tier: GiftTier.standard, animationAsset: 'rose'),
+    GiftType(id: 'heart',     name: 'Heart',     emoji: '❤️', coinCost: 5,     diamondYield: 2,     tier: GiftTier.standard, animationAsset: 'heart'),
+    GiftType(id: 'star',      name: 'Star',      emoji: '⭐', coinCost: 10,    diamondYield: 5,     tier: GiftTier.standard, animationAsset: 'star'),
+    GiftType(id: 'lollipop',  name: 'Lollipop',  emoji: '🍭', coinCost: 25,    diamondYield: 12,    tier: GiftTier.standard, animationAsset: 'lollipop'),
+    GiftType(id: 'rocket',    name: 'Rocket',    emoji: '🚀', coinCost: 50,    diamondYield: 25,    tier: GiftTier.standard, animationAsset: 'rocket'),
+    // Premium tier
+    GiftType(id: 'crown',     name: 'Crown',     emoji: '👑', coinCost: 100,   diamondYield: 50,    tier: GiftTier.premium,  animationAsset: 'crown'),
+    GiftType(id: 'bouquet',   name: 'Bouquet',   emoji: '💐', coinCost: 500,   diamondYield: 250,   tier: GiftTier.premium,  animationAsset: 'bouquet'),
+    GiftType(id: 'diamond',   name: 'Diamond',   emoji: '💎', coinCost: 500,   diamondYield: 250,   tier: GiftTier.premium,  animationAsset: 'diamond'),
+    GiftType(id: 'universe',  name: 'Universe',  emoji: '🌌', coinCost: 1000,  diamondYield: 500,   tier: GiftTier.premium,  animationAsset: 'universe'),
+    GiftType(id: 'sportscar', name: 'Sports Car',emoji: '🏎️', coinCost: 2000,  diamondYield: 1000,  tier: GiftTier.premium,  animationAsset: 'sportscar'),
+    // Whale tier
+    GiftType(id: 'yacht',     name: 'Yacht',     emoji: '🛥️', coinCost: 5000,  diamondYield: 2500,  tier: GiftTier.whale,    animationAsset: 'yacht'),
+    GiftType(id: 'castle',    name: 'Castle',    emoji: '🏰', coinCost: 10000, diamondYield: 5000,  tier: GiftTier.whale,    animationAsset: 'castle'),
+    GiftType(id: 'lion',      name: 'Lion',      emoji: '🦁', coinCost: 30000, diamondYield: 15000, tier: GiftTier.whale,    animationAsset: 'lion'),
   ];
 }
 
@@ -34,6 +49,7 @@ class GiftEvent {
   final String giftTypeId;
   final int quantity;
   final int totalCoins;
+  final int totalDiamondYield;
   final DateTime sentAt;
 
   const GiftEvent({
@@ -44,6 +60,7 @@ class GiftEvent {
     required this.giftTypeId,
     this.quantity = 1,
     required this.totalCoins,
+    this.totalDiamondYield = 0,
     required this.sentAt,
   });
 
@@ -52,9 +69,10 @@ class GiftEvent {
         streamId: json['streamId'] as String,
         senderUid: json['senderUid'] as String,
         senderUsername: json['senderUsername'] as String,
-        giftTypeId: json['giftTypeId'] as String,
+        giftTypeId: json['giftTypeId'] as String? ?? json['giftId'] as String? ?? '',
         quantity: (json['quantity'] as num?)?.toInt() ?? 1,
-        totalCoins: (json['totalCoins'] as num?)?.toInt() ?? 0,
+        totalCoins: (json['totalCoins'] as num?)?.toInt() ?? (json['coinCost'] as num?)?.toInt() ?? 0,
+        totalDiamondYield: (json['totalDiamondYield'] as num?)?.toInt() ?? (json['diamondYield'] as num?)?.toInt() ?? 0,
         sentAt: (json['sentAt'] as Timestamp).toDate(),
       );
 
@@ -66,6 +84,7 @@ class GiftEvent {
         'giftTypeId': giftTypeId,
         'quantity': quantity,
         'totalCoins': totalCoins,
+        'totalDiamondYield': totalDiamondYield,
         'sentAt': Timestamp.fromDate(sentAt),
       };
 

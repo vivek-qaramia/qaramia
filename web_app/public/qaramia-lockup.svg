@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 320" role="img" aria-label="Qaramia logo lockup">
+  <defs>
+    <linearGradient id="ring2" x1="15%" y1="0%" x2="85%" y2="100%">
+      <stop offset="0%"   stop-color="#FFD166"/>
+      <stop offset="45%"  stop-color="#FF8A5C"/>
+      <stop offset="100%" stop-color="#E94560"/>
+    </linearGradient>
+    <linearGradient id="cgrad2" x1="25%" y1="10%" x2="75%" y2="90%">
+      <stop offset="0%"   stop-color="#FF6B81"/>
+      <stop offset="100%" stop-color="#C9184A"/>
+    </linearGradient>
+    <radialGradient id="halo2" cx="50%" cy="50%" r="60%">
+      <stop offset="0%"   stop-color="#FFD166" stop-opacity="0.45"/>
+      <stop offset="40%"  stop-color="#FF8A5C" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#FF7043" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="cglow2" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#FFB3C1" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#C9184A" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="wordmark" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%"   stop-color="#FF8A5C"/>
+      <stop offset="100%" stop-color="#E94560"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Mark (replicated to keep this file standalone) -->
+  <g transform="translate(0,0)">
+    <circle cx="160" cy="160" r="155" fill="url(#halo2)"/>
+    <circle cx="160" cy="160" r="98" fill="none" stroke="url(#ring2)" stroke-width="26" stroke-linecap="round"/>
+    <line x1="218" y1="218" x2="252" y2="252" stroke="url(#ring2)" stroke-width="26" stroke-linecap="round"/>
+    <circle cx="146" cy="160" r="50" fill="url(#cglow2)"/>
+    <path d="M 187 119 A 58 58 0 1 0 187 201"
+          fill="none" stroke="url(#cgrad2)" stroke-width="26" stroke-linecap="round"/>
+  </g>
+
+  <!-- Wordmark — italic serif evokes a love letter -->
+  <text x="320" y="200"
+        font-family="'Playfair Display', 'Georgia', 'Times New Roman', serif"
+        font-style="italic"
+        font-weight="600"
+        font-size="140"
+        fill="url(#wordmark)"
+        letter-spacing="-2">qara-mia!</text>
+
+  <!-- Tagline -->
+  <text x="324" y="240"
+        font-family="'Inter', system-ui, sans-serif"
+        font-weight="500"
+        font-size="18"
+        fill="#C9184A"
+        letter-spacing="6"
+        opacity="0.85">MY  BELOVED  ·  LIVE  COMMERCE</text>
+</svg>

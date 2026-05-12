@@ -210,7 +210,7 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
                   margin: const EdgeInsets.all(12),
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFF4B6E),
+                    color: const Color(0xFFFF7043),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Row(
@@ -224,7 +224,7 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
                       TextButton(
                         onPressed: _acceptInvite,
                         style: TextButton.styleFrom(backgroundColor: Colors.white),
-                        child: const Text('Join', style: TextStyle(color: Color(0xFFFF4B6E), fontWeight: FontWeight.bold)),
+                        child: const Text('Join', style: TextStyle(color: Color(0xFFFF7043), fontWeight: FontWeight.bold)),
                       ),
                       const SizedBox(width: 8),
                       TextButton(
@@ -385,7 +385,7 @@ class _ChatBubble extends StatelessWidget {
         text: TextSpan(
           style: TextStyle(
             fontSize: 13,
-            color: isGift ? const Color(0xFFFFD700) : isJoin ? const Color(0xFF25F4EE) : Colors.white,
+            color: isGift ? const Color(0xFFFFD700) : isJoin ? const Color(0xFFFFD166) : Colors.white,
           ),
           children: [
             TextSpan(

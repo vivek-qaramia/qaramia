@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/providers.dart';
+import '../../theme/brand.dart';
+import '../../widgets/logo_mark.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -87,20 +89,21 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Logo
-                  const Text(
-                    'streamr',
-                    style: TextStyle(
-                      fontSize: 48,
-                      fontWeight: FontWeight.w900,
-                      color: Color(0xFFFF4B6E),
-                      letterSpacing: -2,
+                  // Logo — mark above italic wordmark
+                  const LogoMark(size: 80, glow: true),
+                  const SizedBox(height: 12),
+                  ShaderMask(
+                    blendMode: BlendMode.srcIn,
+                    shaderCallback: (rect) => QBrand.wordmarkGradient.createShader(rect),
+                    child: Text(
+                      'qara-mia!',
+                      style: QBrand.wordmark(fontSize: 48),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   const Text(
-                    'Watch Live. Go Live.',
-                    style: TextStyle(color: Colors.white54, fontSize: 16),
+                    'MY BELOVED',
+                    style: TextStyle(color: Colors.white54, fontSize: 12, letterSpacing: 4),
                   ),
                   const SizedBox(height: 48),
 
@@ -123,7 +126,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     child: ElevatedButton(
                       onPressed: _loading ? null : _submit,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFF4B6E),
+                        backgroundColor: const Color(0xFFFF7043),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -167,7 +170,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       _isLogin
                           ? "Don't have an account? Sign up"
                           : 'Already have an account? Sign in',
-                      style: const TextStyle(color: Color(0xFF25F4EE)),
+                      style: const TextStyle(color: Color(0xFFFFD166)),
                     ),
                   ),
                 ],
@@ -203,7 +206,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFFF4B6E)),
+          borderSide: const BorderSide(color: Color(0xFFFF7043)),
         ),
       ),
     );

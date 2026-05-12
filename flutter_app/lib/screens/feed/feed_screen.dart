@@ -180,7 +180,7 @@ class _ActionColumn extends StatelessWidget {
         _ActionBtn(
           icon: liked ? Icons.favorite : Icons.favorite_border,
           label: _fmt(video.likeCount),
-          color: liked ? const Color(0xFFFF4B6E) : Colors.white,
+          color: liked ? const Color(0xFFFF7043) : Colors.white,
           onTap: onLike,
         ),
         const SizedBox(height: 20),
@@ -240,6 +240,6 @@ class _FeedSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(color: Colors.black,
-        child: const Center(child: CircularProgressIndicator(color: Color(0xFFFF4B6E))));
+        child: const Center(child: CircularProgressIndicator(color: Color(0xFFFF7043))));
   }
 }

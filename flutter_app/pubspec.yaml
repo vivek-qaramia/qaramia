@@ -1,5 +1,5 @@
 name: streamr
-description: "Live streaming social platform — Douyin × Bilibili hybrid"
+description: "Qaramia — every product mentioned, seen or heard, is a purchase opportunity"
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -40,6 +40,8 @@ dependencies:
   lottie: ^3.1.3
   image_picker: ^1.1.2
   permission_handler: ^11.3.1
+  flutter_svg: ^2.0.10           # render the Qaramia mark
+  google_fonts: ^6.2.1           # Playfair Display for the italic wordmark
 
   # HTTP
   dio: ^5.7.0
@@ -63,3 +65,4 @@ flutter:
   assets:
     - assets/images/
     - assets/animations/
+    - assets/branding/
