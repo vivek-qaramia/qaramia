@@ -4,7 +4,6 @@ import '../discover/discover_screen.dart';
 import '../live/live_discovery_screen.dart';
 import '../profile/profile_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../providers/providers.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});

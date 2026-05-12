@@ -67,7 +67,7 @@ class RoomBackgroundSelector extends StatelessWidget {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: kRoomBackgrounds.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            separatorBuilder: (_, _) => const SizedBox(width: 10),
             itemBuilder: (context, i) {
               final bg = kRoomBackgrounds[i];
               final selected = bg.id == selectedId;

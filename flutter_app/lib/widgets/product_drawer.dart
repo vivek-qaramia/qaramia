@@ -34,7 +34,6 @@ class _ProductDrawerState extends ConsumerState<ProductDrawer> with TickerProvid
   bool _open = false;
   bool _pulsing = false;
   String? _trackedAdId; // last ad ID this session has logged an impression for
-  Future<void>? _dwellTimer;
 
   @override
   void didUpdateWidget(covariant ProductDrawer old) {
@@ -63,7 +62,7 @@ class _ProductDrawerState extends ConsumerState<ProductDrawer> with TickerProvid
     final ad = widget.featuredAd;
     if (ad == null || _trackedAdId == ad.id) return;
     final adId = ad.id;
-    _dwellTimer = Future.delayed(const Duration(seconds: 1), () {
+    Future.delayed(const Duration(seconds: 1), () {
       if (!mounted) return;
       if (!_open || widget.featuredAd?.id != adId) return;
       _trackedAdId = adId;
@@ -256,7 +255,7 @@ class _SponsoredCard extends StatelessWidget {
         children: [
           if (ad.imageUrl != null)
             Image.network(ad.imageUrl!, height: 96, fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const SizedBox.shrink()),
+                errorBuilder: (_, _, _) => const SizedBox.shrink()),
           Padding(
             padding: const EdgeInsets.all(12),
             child: Row(
@@ -350,7 +349,7 @@ class _ProductRow extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: Image.network(product.imageUrl!, width: 40, height: 40, fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _sourceBadge(product)),
+                errorBuilder: (_, _, _) => _sourceBadge(product)),
           )
         else
           _sourceBadge(product),

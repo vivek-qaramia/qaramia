@@ -126,11 +126,17 @@ class Sponsorship {
   }) {
     if (status != SponsorshipStatus.active) return false;
     if (allowedStreamerUids.isNotEmpty &&
-        !allowedStreamerUids.contains(streamerUid)) return false;
+        !allowedStreamerUids.contains(streamerUid)) {
+      return false;
+    }
     if (gateOnKeywords.isNotEmpty &&
-        !gateOnKeywords.any(streamProductKeywords.contains)) return false;
+        !gateOnKeywords.any(streamProductKeywords.contains)) {
+      return false;
+    }
     if (gateOnCategories.isNotEmpty &&
-        !gateOnCategories.any(streamProductCategories.contains)) return false;
+        !gateOnCategories.any(streamProductCategories.contains)) {
+      return false;
+    }
     return true;
   }
 

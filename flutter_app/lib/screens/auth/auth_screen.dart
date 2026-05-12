@@ -123,7 +123,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       children: [
                         Expanded(
                           child: DropdownButtonFormField<String>(
-                            value: _ageRange,
+                            initialValue: _ageRange,
                             isExpanded: true,
                             decoration: InputDecoration(
                               labelText: 'Age range (optional)',

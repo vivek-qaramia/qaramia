@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import '../../models/live_stream.dart';
-import '../../models/cohost.dart';
 import '../../providers/providers.dart';
 import '../../services/cohost_service.dart';
 import '../../widgets/broadcast_scan_button.dart';
@@ -104,14 +103,6 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         modelType: SegModelType.segModelAi,
         greenCapacity: 0.5,
       ),
-    );
-  }
-
-  Future<void> _disableVirtualBackground() async {
-    await _engine?.enableVirtualBackground(
-      enabled: false,
-      backgroundSource: const VirtualBackgroundSource(),
-      segproperty: const SegmentationProperty(),
     );
   }
 
@@ -237,7 +228,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                       Switch(
                         value: _roomMode,
                         onChanged: (v) => setState(() => _roomMode = v),
-                        activeColor: const Color(0xFFFF7043),
+                        activeThumbColor: const Color(0xFFFF7043),
                       ),
                     ],
                   ),
@@ -501,7 +492,7 @@ class _CoHostInviteSheetState extends ConsumerState<_CoHostInviteSheet> {
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF7043)),
               child: const Text('Invite'),
             ),
-          )).toList(),
+          )),
         ],
       ),
     );

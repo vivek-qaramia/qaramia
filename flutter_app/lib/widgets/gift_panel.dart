@@ -158,7 +158,7 @@ class _TierSection extends StatelessWidget {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 4),
               itemCount: gifts.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
               itemBuilder: (_, i) => _GiftTile(gift: gifts[i], coins: coins, onTap: () => onSelected(gifts[i])),
             ),
           ),
@@ -208,7 +208,7 @@ class _SponsoredRow extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 4),
             itemCount: pairs.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            separatorBuilder: (_, _) => const SizedBox(width: 8),
             itemBuilder: (_, i) {
               final (gift, sponsorship) = pairs[i];
               return _GiftTile(

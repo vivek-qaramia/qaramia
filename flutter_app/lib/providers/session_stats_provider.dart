@@ -49,5 +49,5 @@ class SessionStatsNotifier extends StateNotifier<SessionStats> {
 /// dev tools) don't bleed counters into one another.
 final sessionStatsProvider = StateNotifierProvider.family<
     SessionStatsNotifier, SessionStats, String>(
-  (_, __) => SessionStatsNotifier(),
+  (_, _) => SessionStatsNotifier(),
 );

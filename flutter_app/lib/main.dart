@@ -37,7 +37,7 @@ class AuthGate extends ConsumerWidget {
       loading: () => const Scaffold(
         body: Center(child: CircularProgressIndicator(color: QBrand.peach)),
       ),
-      error: (_, __) => const AuthScreen(),
+      error: (_, _) => const AuthScreen(),
       data: (user) => user != null ? const HomeScreen() : const AuthScreen(),
     );
   }

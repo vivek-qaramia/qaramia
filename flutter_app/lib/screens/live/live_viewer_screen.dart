@@ -31,7 +31,6 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
   RtcEngine? _engine;
   int? _remoteUid;
   bool _showGiftPanel = false;
-  bool _isCoHost = false;
   Map<String, dynamic>? _pendingInvite;
   final _chatCtrl = TextEditingController();
   final _cohostService = CoHostService();
@@ -94,7 +93,7 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
     );
     await _engine!.startPreview();
     await _cohostService.setActive(widget.stream.id, uid);
-    setState(() { _isCoHost = true; _pendingInvite = null; });
+    setState(() { _pendingInvite = null; });
   }
 
   Future<void> _declineInvite() async {

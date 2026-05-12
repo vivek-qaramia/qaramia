@@ -133,7 +133,7 @@ class _ProfileHeader extends ConsumerWidget {
           if (!isSelf && currentUserId != null)
             isFollowingAsync!.when(
               loading: () => const SizedBox(height: 44),
-              error: (_, __) => const SizedBox.shrink(),
+              error: (_, _) => const SizedBox.shrink(),
               data: (isFollowing) => SizedBox(
                 width: 200,
                 height: 44,

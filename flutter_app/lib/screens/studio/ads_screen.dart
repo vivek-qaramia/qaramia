@@ -39,7 +39,7 @@ class AdsScreen extends ConsumerWidget {
             : ListView.separated(
                 padding: const EdgeInsets.all(16),
                 itemCount: ads.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
                 itemBuilder: (_, i) => _AdRow(ad: ads[i]),
               ),
       ),
@@ -107,7 +107,7 @@ class _AdRow extends ConsumerWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: Image.network(ad.imageUrl!, width: 56, height: 56, fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink()),
+                  errorBuilder: (_, _, _) => const SizedBox.shrink()),
             )
           else
             Container(
