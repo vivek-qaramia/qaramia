@@ -8,6 +8,7 @@ import '../../providers/providers.dart';
 import '../../services/cohost_service.dart';
 import '../../widgets/danmaku_overlay.dart';
 import '../../widgets/gift_panel.dart';
+import '../../widgets/product_drawer.dart';
 import '../../widgets/room_background_selector.dart';
 
 const _agoraAppId = String.fromEnvironment('AGORA_APP_ID', defaultValue: 'YOUR_AGORA_APP_ID');
@@ -200,6 +201,12 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
 
           // Danmaku overlay (floating comments)
           DanmakuOverlay(messages: messages),
+
+          // Live-commerce surface — floating bag + slide-up drawer
+          ProductDrawer(
+            products: liveStream.featuredProducts,
+            featuredAd: liveStream.featuredAd,
+          ),
 
           // Co-host invite banner
           if (_pendingInvite != null)

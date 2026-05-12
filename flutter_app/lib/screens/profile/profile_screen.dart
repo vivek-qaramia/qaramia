@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../providers/providers.dart';
 import '../../models/app_user.dart';
 import '../../models/video.dart';
+import '../studio/ads_screen.dart';
 
 // Self profile (uses current auth user)
 class ProfileScreenSelf extends ConsumerWidget {
@@ -47,11 +48,19 @@ class ProfileScreen extends ConsumerWidget {
                 pinned: true,
                 title: Text('@${user.username}', style: const TextStyle(fontWeight: FontWeight.bold)),
                 actions: [
-                  if (isSelf)
+                  if (isSelf) ...[
+                    IconButton(
+                      tooltip: 'Manage ads',
+                      icon: const Icon(Icons.campaign_outlined),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const AdsScreen()),
+                      ),
+                    ),
                     IconButton(
                       icon: const Icon(Icons.logout),
                       onPressed: () => ref.read(authServiceProvider).signOut(),
                     ),
+                  ],
                 ],
               ),
               SliverToBoxAdapter(

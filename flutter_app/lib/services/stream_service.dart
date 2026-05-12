@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 import '../models/live_stream.dart';
 import '../models/gift.dart';
+import '../models/product_info.dart';
+import '../models/ad.dart';
 
 class StreamService {
   final _db = FirebaseFirestore.instance;
@@ -88,6 +90,27 @@ class StreamService {
       'totalGifts': FieldValue.increment(event.totalCoins),
     });
     await batch.commit();
+  }
+
+  /// Push the latest detected products + matched ad to all viewers of a stream.
+  /// Called by the Studio after each visual/spoken scan.
+  Future<void> publishProducts(
+    String streamId,
+    List<ProductInfo> products,
+    Ad? matchedAd,
+  ) async {
+    await _db.collection('streams').doc(streamId).update({
+      'featuredProducts': products.map((p) => p.toJson()).toList(),
+      'featuredAd': matchedAd?.toJson(),
+    });
+  }
+
+  /// Clear the detected products / ad surface for all viewers.
+  Future<void> dismissProducts(String streamId) async {
+    await _db.collection('streams').doc(streamId).update({
+      'featuredProducts': <Map<String, dynamic>>[],
+      'featuredAd': null,
+    });
   }
 
   Stream<List<GiftEvent>> watchGifts(String streamId) {
