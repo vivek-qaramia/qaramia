@@ -1,0 +1,113 @@
+# ── Environment files (NEVER COMMIT — contain secrets) ───────────────────────
+.env
+.env.local
+.env.*.local
+*.env.local
+
+# Firebase service accounts (NEVER COMMIT)
+*serviceaccount*.json
+*service-account*.json
+*firebase-adminsdk*.json
+
+# Private keys / certificates
+*.pem
+*.key
+*.p12
+*.pfx
+
+# ── Node.js (web_app, functions) ──────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Next.js
+.next/
+out/
+.vercel
+*.tsbuildinfo
+next-env.d.ts
+
+# Build output
+dist/
+build/
+
+# Test / coverage
+coverage/
+.nyc_output/
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+*.egg-info/
+
+# ── Flutter ───────────────────────────────────────────────────────────────────
+flutter_app/build/
+flutter_app/.dart_tool/
+flutter_app/.flutter-plugins
+flutter_app/.flutter-plugins-dependencies
+flutter_app/.packages
+flutter_app/.pub-cache/
+flutter_app/.pub/
+flutter_app/.metadata
+
+# Flutter iOS
+flutter_app/ios/Pods/
+flutter_app/ios/.symlinks/
+flutter_app/ios/Flutter/Generated.xcconfig
+flutter_app/ios/Flutter/flutter_export_environment.sh
+flutter_app/ios/Runner.xcworkspace/xcuserdata/
+flutter_app/ios/Runner.xcodeproj/xcuserdata/
+
+# Flutter Android
+flutter_app/android/.gradle/
+flutter_app/android/local.properties
+flutter_app/android/captures/
+flutter_app/android/.idea/
+flutter_app/android/app/debug/
+flutter_app/android/app/profile/
+flutter_app/android/app/release/
+
+# Flutter macOS / Linux / Windows desktop
+flutter_app/macos/Pods/
+flutter_app/macos/Flutter/ephemeral/
+flutter_app/linux/flutter/ephemeral/
+flutter_app/windows/flutter/ephemeral/
+
+# ── Firebase ──────────────────────────────────────────────────────────────────
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+ui-debug.log
+database-debug.log
+.firebaserc
+
+# ── IDE / editor ──────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+
+# ── Claude Code local settings (user-specific, not for sharing) ───────────────
+.claude/settings.local.json
+
+# ── Misc ──────────────────────────────────────────────────────────────────────
+*.tmp
+*.bak
+*.backup
+.cache/

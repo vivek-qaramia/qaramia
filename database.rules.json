@@ -1,0 +1,22 @@
+{
+  "rules": {
+    "danmaku": {
+      "$streamId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        "$messageId": {
+          ".validate": "newData.hasChildren(['authorUid', 'authorUsername', 'text', 'sentAt']) && newData.child('authorUid').val() === auth.uid"
+        }
+      }
+    },
+    "captions": {
+      "$streamId": {
+        ".read": "auth != null",
+        "current": {
+          ".write": "auth != null",
+          ".validate": "newData.hasChildren(['text', 't']) && newData.child('text').isString() && newData.child('t').isNumber()"
+        }
+      }
+    }
+  }
+}

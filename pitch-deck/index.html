@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Qaramia — YC Pitch Deck</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --pink:  #FF4B6E;
+    --cyan:  #25F4EE;
+    --yc:    #F26722;
+    --dark:  #0A0A0F;
+    --card:  #111118;
+    --line:  rgba(255,255,255,0.08);
+    --muted: rgba(255,255,255,0.45);
+  }
+
+  html, body { width: 100%; height: 100%; overflow: hidden; background: var(--dark); font-family: 'Inter', system-ui, sans-serif; color: #fff; }
+
+  /* ── Deck shell ── */
+  #deck { width: 100vw; height: 100vh; position: relative; overflow: hidden; }
+
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    padding: 64px 80px;
+    opacity: 0; pointer-events: none;
+    transition: opacity .4s ease, transform .4s ease;
+    transform: translateY(24px);
+  }
+  .slide.active { opacity: 1; pointer-events: all; transform: translateY(0); }
+  .slide.exit   { opacity: 0; transform: translateY(-24px); }
+
+  /* ── Navigation ── */
+  #nav {
+    position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 12px; z-index: 100;
+    background: rgba(255,255,255,0.06); backdrop-filter: blur(12px);
+    border: 1px solid var(--line); border-radius: 100px; padding: 10px 20px;
+  }
+  #nav button {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: 18px; transition: color .2s; padding: 2px 8px; border-radius: 6px;
+  }
+  #nav button:hover { color: #fff; }
+  #counter { font-size: 12px; color: var(--muted); min-width: 48px; text-align: center; font-variant-numeric: tabular-nums; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--line); transition: background .2s; cursor: pointer; }
+  .dot.active { background: var(--pink); }
+
+  /* ── Slide label ── */
+  .label {
+    display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--pink); margin-bottom: 20px;
+  }
+  .label.cyan  { color: var(--cyan); }
+  .label.yc    { color: var(--yc); }
+  .label.white { color: rgba(255,255,255,0.5); }
+
+  /* ── Typography ── */
+  h1 { font-size: clamp(48px, 6vw, 80px); font-weight: 900; line-height: 1; letter-spacing: -.03em; }
+  h2 { font-size: clamp(32px, 4vw, 52px); font-weight: 800; line-height: 1.1; letter-spacing: -.025em; }
+  h3 { font-size: clamp(20px, 2.5vw, 28px); font-weight: 700; line-height: 1.2; }
+  p  { font-size: clamp(15px, 1.6vw, 19px); line-height: 1.65; color: rgba(255,255,255,0.7); }
+  .mega { font-size: clamp(56px, 8vw, 120px); font-weight: 900; letter-spacing: -.04em; line-height: .9; }
+  .sub  { font-size: clamp(17px, 2vw, 22px); color: rgba(255,255,255,.55); font-weight: 400; margin-top: 16px; }
+  .accent { color: var(--pink); }
+  .accent-cyan { color: var(--cyan); }
+
+  /* ── Layout helpers ── */
+  .center { text-align: center; align-items: center; }
+  .max-640 { max-width: 640px; width: 100%; }
+  .max-800 { max-width: 800px; width: 100%; }
+  .max-960 { max-width: 960px; width: 100%; }
+  .full    { max-width: 100%; width: 100%; }
+  .gap-8  { gap: 8px; }
+  .gap-16 { gap: 16px; }
+  .gap-24 { gap: 24px; }
+  .gap-32 { gap: 32px; }
+  .gap-48 { gap: 48px; }
+  .flex   { display: flex; }
+  .col    { flex-direction: column; }
+  .row    { flex-direction: row; align-items: flex-start; }
+  .wrap   { flex-wrap: wrap; }
+  .mt-8   { margin-top: 8px; }
+  .mt-16  { margin-top: 16px; }
+  .mt-24  { margin-top: 24px; }
+  .mt-40  { margin-top: 40px; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 20px; padding: 28px 32px;
+  }
+  .card-sm { border-radius: 16px; padding: 20px 24px; }
+  .card-grid { display: grid; gap: 16px; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+  /* ── Stat box ── */
+  .stat { text-align: center; }
+  .stat .num { font-size: clamp(36px, 5vw, 64px); font-weight: 900; letter-spacing: -.03em; line-height: 1; }
+  .stat .desc { font-size: 13px; color: var(--muted); margin-top: 6px; font-weight: 500; }
+
+  /* ── Problem list ── */
+  .prob-item { display: flex; align-items: flex-start; gap: 16px; }
+  .prob-icon { font-size: 28px; flex-shrink: 0; margin-top: 2px; }
+  .prob-item h3 { font-size: 20px; margin-bottom: 4px; }
+  .prob-item p  { font-size: 15px; color: var(--muted); }
+
+  /* ── Timeline / flow ── */
+  .flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; }
+  .flow-step {
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+    gap: 10px; flex: 1; min-width: 100px;
+  }
+  .flow-icon {
+    width: 56px; height: 56px; border-radius: 16px;
+    display: flex; align-items: center; justify-content: center; font-size: 24px;
+    background: var(--card); border: 1px solid var(--line);
+  }
+  .flow-label { font-size: 12px; font-weight: 600; color: var(--muted); }
+  .flow-arrow { color: var(--line); font-size: 20px; margin: 0 4px; flex-shrink: 0; padding-bottom: 28px; }
+
+  /* ── Comparison table ── */
+  .comp-table { width: 100%; border-collapse: collapse; }
+  .comp-table th { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 0 16px 12px; text-align: left; }
+  .comp-table th:not(:first-child) { text-align: center; }
+  .comp-table td { padding: 14px 16px; border-top: 1px solid var(--line); font-size: 14px; }
+  .comp-table td:not(:first-child) { text-align: center; }
+  .comp-table tr:hover td { background: rgba(255,255,255,.02); }
+  .tick  { color: var(--cyan); font-size: 18px; }
+  .cross { color: rgba(255,255,255,0.2); font-size: 18px; }
+  .q-col { background: rgba(255,75,110,0.06); }
+
+  /* ── Team card ── */
+  .team-card { text-align: center; }
+  .avatar {
+    width: 72px; height: 72px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--pink), var(--cyan));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; margin: 0 auto 12px;
+  }
+  .team-card h3 { font-size: 18px; margin-bottom: 2px; }
+  .team-card .role { font-size: 13px; color: var(--cyan); font-weight: 600; margin-bottom: 8px; }
+  .team-card p { font-size: 13px; color: var(--muted); }
+
+  /* ── Divider ── */
+  hr { border: none; border-top: 1px solid var(--line); margin: 24px 0; }
+
+  /* ── Slide 1 — Cover ── */
+  #s1 { background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(255,75,110,.18) 0%, transparent 70%),
+                    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(37,244,238,.1) 0%, transparent 60%),
+                    var(--dark); }
+  .logo-mark { font-size: 80px; margin-bottom: 24px; line-height: 1; }
+  .wordmark { font-size: clamp(52px, 7vw, 96px); font-weight: 900; letter-spacing: -.04em; }
+  .tagline  { font-size: clamp(16px, 2vw, 22px); color: rgba(255,255,255,.5); margin-top: 16px; max-width: 520px; text-align: center; line-height: 1.5; }
+  .yc-badge {
+    margin-top: 40px;
+    display: inline-flex; align-items: center; gap: 10px;
+    background: rgba(242,103,34,.12); border: 1px solid rgba(242,103,34,.3);
+    border-radius: 100px; padding: 10px 20px; font-size: 13px; font-weight: 700; color: var(--yc);
+  }
+
+  /* ── Slide 2 — Problem ── */
+  #s2 { background: var(--dark); }
+
+  /* ── Slide 5 — Market ── */
+  #s5 { background: radial-gradient(ellipse 60% 50% at 10% 80%, rgba(37,244,238,.08) 0%, transparent 60%), var(--dark); }
+
+  /* ── Slide 9 — Ask ── */
+  #s9 { background: radial-gradient(ellipse 70% 60% at 50% 100%, rgba(255,75,110,.15) 0%, transparent 65%), var(--dark); }
+
+  /* ── Progress bar ── */
+  #progress {
+    position: fixed; top: 0; left: 0; height: 3px;
+    background: linear-gradient(90deg, var(--pink), var(--cyan));
+    transition: width .4s ease; z-index: 200;
+  }
+
+  /* ── Keyboard hint ── */
+  #hint {
+    position: fixed; top: 20px; right: 24px;
+    font-size: 11px; color: rgba(255,255,255,.2);
+    pointer-events: none;
+  }
+
+  /* ── Use-of-funds bar ── */
+  .fund-bar { height: 48px; border-radius: 12px; overflow: hidden; display: flex; width: 100%; }
+  .fund-seg { display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; transition: flex .6s ease; }
+  .fund-legend { display: flex; flex-wrap: wrap; gap: 12px 24px; margin-top: 16px; }
+  .fund-legend-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  /* print */
+  @media print {
+    html, body { overflow: visible; }
+    #deck { height: auto; }
+    .slide { position: relative; opacity: 1 !important; transform: none !important; height: 100vh; page-break-after: always; }
+    #nav, #progress, #hint { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+<div id="hint">← → or click to navigate</div>
+
+<div id="deck">
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       SLIDE 1 — COVER
+  ══════════════════════════════════════════════════════════════════ -->
+  <div class="slide center" id="s1">
+    <div class="logo-mark">📡</div>
+    <div class="wordmark">Qaramia</div>
+    <p class="tagline">The live streaming platform where every product on camera is a purchase opportunity</p>
+    <div class="yc-badge">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect width="16" height="16" rx="3" fill="#F26722"/><text x="3" y="12" fill="white" font-size="10" font-weight="900" font-family="sans-serif">Y</text></svg>
+      YC Application · S25
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       SLIDE 2 — PROBLEM
+  ══════════════════════════════════════════════════════════════════ -->
+  <div class="slide" id="s2">
+    <div class="max-800">
+      <span class="label">The Problem</span>
+      <h2>Live streaming is a <span class="accent">$700B market</span> — and monetization is completely broken</h2>
+      <div class="flex col gap-24 mt-40">
+        <div class="prob-item">
+          <div class="prob-icon">🏷️</div>
+          <div>
+            <h3>Creators tag products manually or not at all</h3>
+            <p>Sponsorships are negotiated by DM. A streamer picks up a product and the moment vanishes, unmonetized.</p>
+          </div>
+        </div>
+        <div class="prob-item">
+          <div class="prob-icon">📉</div>
+          <div>
+            <h3>Advertisers get generic, untargeted impressions</h3>
+            <p>Live stream CPMs average $0.01–$0.03. Contextual display ads command $3–$8. The gap is entirely a data problem.</p>
+          </div>
+        </div>
+        <div class="prob-item">
+          <div class="prob-icon">🛒</div>
+          <div>
+            <h3>Viewers have no frictionless purchase path</h3>
+            <p>"What bag is that?" fills every chat. The impulse to buy exists but the buying moment evaporates.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       SLIDE 3 — SOLUTION
+  ══════════════════════════════════════════════════════════════════ -->
+  <div class="slide center" id="s3">
+    <div class="max-800 flex col" style="align-items:center">
+      <span class="label cyan">The Solution</span>
+      <h2 style="text-align:center">Qaramia <span class="accent-cyan">auto-identifies every product</span> on screen and turns it into a targeted ad — in real time</h2>
+      <div class="flow mt-40" style="width:100%">
+        <div class="flow-step">
+          <div class="flow-icon">🎥</div>
+          <div class="flow-label">Streamer goes live</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="flow-icon">📦</div>
+          <div class="flow-label">Camera sees product</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="flow-icon">🧠</div>
+          <div class="flow-label">AI identifies brand &amp; SKU</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="flow-icon">🎯</div>
+          <div class="flow-label">Matched ad surfaces</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="flow-icon">💳</div>
+          <div class="flow-label">Viewer purchases</div>
+        </div>
+      </div>
+      <p class="mt-40" style="text-align:center;max-width:560px">No manual tagging. No sponsor negotiations. No missed moments.<br/>The camera is the inventory system.</p>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       SLIDE 4 — PRODUCT
+  ══════════════════════════════════════════════════════════════════ -->
+  <div class="slide" id="s4">
+    <div class="max-960 full">
+      <span class="label">Product</span>
+      <h2>A full creator studio — built for commerce from day one</h2>
+      <div class="card-grid grid-2 mt-40" style="gap:16px">
+        <div class="card card-sm">
+          <div style="font-size:28px;margin-bottom:10px">🔍</div>
+          <h3 style="font-size:17px;margin-bottom:6px">Visual Product Scanner</h3>
+          <p style="font-size:14px">Barcode scan (instant, free) with AI Vision fallback via Claude. Works on any product — branded goods, food, electronics, fashion.</p>
+        </div>
+        <div class="card card-sm">
+          <div style="font-size:28px;margin-bottom:10px">🎯</div>
+          <h3 style="font-size:17px;margin-bottom:6px">Contextual Ad Matching</h3>
+          <p style="font-size:14px">Advertisers bid on product categories. When a match is detected, the relevant ad card overlays for viewers — CPMs 3–5× platform average.</p>
+        </div>
+        <div class="card card-sm">
+          <div style="font-size:28px;margin-bottom:10px">✨</div>
+          <h3 style="font-size:17px;margin-bottom:6px">AR Lenses &amp; Studio Tools</h3>
+          <p style="font-size:14px">Snap Camera Kit integration, 15 CapCut-style video filters, voice effects, virtual backgrounds. Creator retention through best-in-class production tools.</p>
+        </div>
+        <div class="card card-sm">
+          <div style="font-size:28px;margin-bottom:10px">💬</div>
+          <h3 style="font-size:17px;margin-bottom:6px">Danmaku &amp; Co-Hosting</h3>
+          <p style="font-size:14px">Bilibili-style bullet comments, real-time gifting, multi-host room mode. Engagement mechanics proven to 3× session length.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       SLIDE 5 — MARKET SIZE
+  ══════════════════════════════════════════════════════════════════ -->
+  <div class="slide center" id="s5">
+    <div class="max-960 full flex col" style="align-items:center">
+      <span class="label">Market Size</span>
+      <h2 style="text-align:center">Three markets. All converging.</h2>
+      <div class="card-grid grid-3 mt-40" style="gap:16px;width:100%">
+        <div class="card stat">
+          <div class="num" style="color:var(--pink)">$700B</div>
+          <div class="desc">Global Live Commerce GMV<br/>(China-led, 2023)</div>
+          <hr/>
+          <p style="font-size:13px">US equivalent: <strong style="color:#fff">$35B today → $68B by 2026</strong></p>
+        </div>
+        <div class="card stat">
+          <div class="num" style="color:var(--cyan)">$558B</div>
+          <div class="desc">Global Programmatic<br/>Advertising (2023)</div>
+          <hr/>
+          <p style="font-size:13px">Visual-contextual segment: <strong style="color:#fff">largely uncaptured</strong></p>
+        </div>
+        <div class="card stat">
+          <div class="num" style="color:var(--yc)">$1.49T</div>
+          <div class="desc">Global Live Streaming<br/>Market by 2032</div>
+          <hr/>
+          <p style="font-size:13px">CAGR: <strong style="color:#fff">28% per year</strong></p>
+        </div>
+      </div>
+      <div class="card mt-16" style="width:100%;padding:20px 28px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:40px">
+          <div>
+            <div style="font-size:12px;color:var(--muted);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px">Our initial SOM</div>
+            <div style="font-size:28px;font-weight:900;color:var(--pink)">$500M</div>
+          </div>
+          <p style="font-size:14px;color:var(--muted);max-width:480px">Capturing 1% of the US live commerce market with a 30% take rate on ad revenue generated through visual product identification. No comparable product exists in Western markets today.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       SLIDE 6 — BUSINESS MODEL
+  ══════════════════════════════════════════════════════════════════ -->
+  <div class="slide" id="s6">
+    <div class="max-800">
+      <span class="label">Business Model</span>
+      <h2>Multiple revenue layers on a single viewer action</h2>
+      <div class="flex col gap-16 mt-40">
+        <div class="card" style="display:flex;align-items:center;gap:24px">
+          <div style="font-size:36px;min-width:52px">🎯</div>
+          <div>
+            <h3 style="font-size:18px;margin-bottom:4px">Visual Ad Revenue Share <span style="font-size:14px;color:var(--pink);font-weight:700">— Primary</span></h3>
+            <p style="font-size:14px">30% platform take rate on all advertiser spend. Advertisers pay CPM of $3–$8 for contextually matched impressions. Creators keep 70%.</p>
+          </div>
+        </div>
+        <div class="card" style="display:flex;align-items:center;gap:24px">
+          <div style="font-size:36px;min-width:52px">🎁</div>
+          <div>
+            <h3 style="font-size:18px;margin-bottom:4px">Virtual Gifts &amp; Tips</h3>
+            <p style="font-size:14px">30% platform fee on all gifting transactions. Proven in Asia — top streamers on Douyin earn $50K+/month from gifts alone.</p>
+          </div>
+        </div>
+        <div class="card" style="display:flex;align-items:center;gap:24px">
+          <div style="font-size:36px;min-width:52px">🏢</div>
+          <div>
+            <h3 style="font-size:18px;margin-bottom:4px">Brand Studio (SaaS)</h3>
+            <p style="font-size:14px">$299–$999/month for brands to upload product catalogs, set bidding rules, and access performance analytics across all streams.</p>
+          </div>
+        </div>
+        <div class="card" style="display:flex;align-items:center;gap:24px">
+          <div style="font-size:36px;min-width:52px">⭐</div>
+          <div>
+            <h3 style="font-size:18px;margin-bottom:4px">Creator Pro Subscription</h3>
+            <p style="font-size:14px">$19/month for advanced filters, custom AR lenses, analytics dashboard, and priority ad matching. Converts to SaaS recurring revenue.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       SLIDE 7 — WHY NOW
+  ══════════════════════════════════════════════════════════════════ -->
+  <div class="slide" id="s7">
+    <div class="max-800">
+      <span class="label">Why Now</span>
+      <h2>Three forces converging in <span class="accent">2025</span></h2>
+      <div class="flex col gap-20 mt-40">
+        <div class="prob-item">
+          <div class="prob-icon">🧠</div>
+          <div>
+            <h3>AI vision is finally accurate enough</h3>
+            <p>Claude Vision, GPT-4o, and barcode SDKs now identify products in real-world, imperfect lighting with &gt;90% accuracy. This wasn't true two years ago.</p>
+          </div>
+        </div>
+        <div class="prob-item">
+          <div class="prob-icon">🌏</div>
+          <div>
+            <h3>The Western market is wide open</h3>
+            <p>Live commerce is $700B in Asia but only $35B in the US — not because demand doesn't exist, but because no platform has nailed the product. TikTok Shop proved Americans will buy on live video.</p>
+          </div>
+        </div>
+        <div class="prob-item">
+          <div class="prob-icon">📵</div>
+          <div>
+            <h3>TikTok's regulatory uncertainty creates a vacuum</h3>
+            <p>A potential US ban leaves 170M TikTok users and tens of thousands of live commerce creators actively looking for an alternative. The window to capture them is now.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       SLIDE 8 — COMPETITION
+  ══════════════════════════════════════════════════════════════════ -->
+  <div class="slide" id="s8">
+    <div class="max-960 full">
+      <span class="label">Competitive Landscape</span>
+      <h2>No one has connected the camera to the checkout</h2>
+      <div class="card mt-32" style="padding:0;overflow:hidden">
+        <table class="comp-table">
+          <thead>
+            <tr>
+              <th>Platform</th>
+              <th>Live Streaming</th>
+              <th>Creator Tools</th>
+              <th>Visual Product ID</th>
+              <th>Contextual Ads</th>
+              <th class="q-col" style="color:var(--pink)">Qaramia</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>TikTok Live</strong></td>
+              <td><span class="tick">✓</span></td>
+              <td><span class="tick">✓</span></td>
+              <td><span class="cross">✗</span></td>
+              <td><span class="cross">✗</span></td>
+              <td class="q-col"><span class="tick">✓</span></td>
+            </tr>
+            <tr>
+              <td><strong>Instagram Live</strong></td>
+              <td><span class="tick">✓</span></td>
+              <td><span class="cross">✗</span></td>
+              <td><span class="cross">✗</span></td>
+              <td><span class="cross">✗</span></td>
+              <td class="q-col"><span class="tick">✓</span></td>
+            </tr>
+            <tr>
+              <td><strong>Amazon Live</strong></td>
+              <td><span class="tick">✓</span></td>
+              <td><span class="cross">✗</span></td>
+              <td>Manual only</td>
+              <td><span class="cross">✗</span></td>
+              <td class="q-col"><span class="tick">✓</span></td>
+            </tr>
+            <tr>
+              <td><strong>Twitch</strong></td>
+              <td><span class="tick">✓</span></td>
+              <td><span class="tick">✓</span></td>
+              <td><span class="cross">✗</span></td>
+              <td><span class="cross">✗</span></td>
+              <td class="q-col"><span class="tick">✓</span></td>
+            </tr>
+            <tr>
+              <td><strong>YouTube Live</strong></td>
+              <td><span class="tick">✓</span></td>
+              <td><span class="tick">✓</span></td>
+              <td><span class="cross">✗</span></td>
+              <td><span class="cross">✗</span></td>
+              <td class="q-col"><span class="tick">✓</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="mt-24" style="font-size:14px;color:var(--muted)">
+        <strong style="color:#fff">Moat:</strong> The visual product ID pipeline is the defensible layer. As Qaramia's product catalog and advertiser network grow, matching accuracy improves — a flywheel that incumbents cannot shortcut by copying the UI.
+      </p>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       SLIDE 9 — TRACTION
+  ══════════════════════════════════════════════════════════════════ -->
+  <div class="slide" id="s9">
+    <div class="max-800">
+      <span class="label">Traction</span>
+      <h2>Built in weeks. Core technology proven.</h2>
+      <div class="card-grid grid-2 mt-40" style="gap:16px">
+        <div class="card stat">
+          <div class="num" style="color:var(--pink)">✓</div>
+          <div class="desc" style="font-size:15px;margin-top:10px">Full-stack web + mobile app<br/>shipped on Firebase + Agora</div>
+        </div>
+        <div class="card stat">
+          <div class="num" style="color:var(--cyan)">✓</div>
+          <div class="desc" style="font-size:15px;margin-top:10px">Real-time product ID pipeline<br/>live in production</div>
+        </div>
+        <div class="card stat">
+          <div class="num" style="color:var(--yc)">✓</div>
+          <div class="desc" style="font-size:15px;margin-top:10px">Snap Camera Kit AR integration<br/>+ 15 CapCut-style filters</div>
+        </div>
+        <div class="card stat">
+          <div class="num" style="color:#fff">✓</div>
+          <div class="desc" style="font-size:15px;margin-top:10px">Multi-host room mode with<br/>virtual background compositing</div>
+        </div>
+      </div>
+      <div class="card mt-16" style="border-color:rgba(255,75,110,.3);background:rgba(255,75,110,.05)">
+        <p style="font-size:15px"><strong style="color:#fff">Next milestone (30 days):</strong> Onboard 50 beta creators. Target: 3 brands signed to advertising pilot, first $10K GMV through visual ad conversion.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       SLIDE 10 — TEAM
+  ══════════════════════════════════════════════════════════════════ -->
+  <div class="slide center" id="s10">
+    <div class="max-800 full flex col" style="align-items:center">
+      <span class="label">Team</span>
+      <h2 style="text-align:center">Built by people who understand <span class="accent">both cameras and commerce</span></h2>
+      <div class="card-grid grid-3 mt-40" style="gap:16px;width:100%">
+        <div class="card team-card">
+          <div class="avatar">👤</div>
+          <h3>Founder / CEO</h3>
+          <div class="role">Product &amp; Vision</div>
+          <p>Live commerce market insight. Building consumer social products since [year].</p>
+        </div>
+        <div class="card team-card">
+          <div class="avatar">💻</div>
+          <h3>Co-founder / CTO</h3>
+          <div class="role">Engineering</div>
+          <p>Full-stack + ML. Built real-time video pipelines at scale. Expert in WebRTC and computer vision.</p>
+        </div>
+        <div class="card team-card">
+          <div class="avatar">📣</div>
+          <h3>Co-founder / CGO</h3>
+          <div class="role">Growth</div>
+          <p>Creator economy background. Managed influencer campaigns generating $XM in tracked GMV.</p>
+        </div>
+      </div>
+      <p class="mt-24" style="font-size:14px;color:var(--muted);text-align:center">
+        Advisors: [Senior advertising executive] · [Computer vision researcher] · [Live commerce operator]
+      </p>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       SLIDE 11 — THE ASK
+  ══════════════════════════════════════════════════════════════════ -->
+  <div class="slide center" id="s11">
+    <div class="max-800 full flex col" style="align-items:center">
+      <span class="label yc">The Ask</span>
+      <div style="text-align:center">
+        <div class="mega">$1.5M</div>
+        <p class="sub">Pre-seed · 18-month runway</p>
+      </div>
+
+      <div style="width:100%;margin-top:40px">
+        <div class="fund-bar">
+          <div class="fund-seg" style="flex:40;background:linear-gradient(135deg,var(--pink),#c0254a);color:#fff">40%</div>
+          <div class="fund-seg" style="flex:30;background:linear-gradient(135deg,var(--cyan),#1ab8b4);color:#0a0a0f">30%</div>
+          <div class="fund-seg" style="flex:20;background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff">20%</div>
+          <div class="fund-seg" style="flex:10;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff">10%</div>
+        </div>
+        <div class="fund-legend">
+          <div class="fund-legend-item"><div class="legend-dot" style="background:var(--pink)"></div>40% — Engineering (2 senior hires)</div>
+          <div class="fund-legend-item"><div class="legend-dot" style="background:var(--cyan)"></div>30% — Creator acquisition &amp; growth</div>
+          <div class="fund-legend-item"><div class="legend-dot" style="background:#8b5cf6"></div>20% — Advertiser BD &amp; brand partnerships</div>
+          <div class="fund-legend-item"><div class="legend-dot" style="background:#f59e0b"></div>10% — Infrastructure &amp; operations</div>
+        </div>
+      </div>
+
+      <div class="card mt-24" style="width:100%;border-color:rgba(242,103,34,.3);background:rgba(242,103,34,.06)">
+        <div style="display:flex;justify-content:space-between;gap:32px;flex-wrap:wrap">
+          <div style="text-align:center">
+            <div style="font-size:24px;font-weight:900;color:var(--yc)">Month 6</div>
+            <div style="font-size:13px;color:var(--muted)">50 brands on ad platform</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:24px;font-weight:900;color:var(--yc)">Month 12</div>
+            <div style="font-size:13px;color:var(--muted)">10K active creators · $100K MRR</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:24px;font-weight:900;color:var(--yc)">Month 18</div>
+            <div style="font-size:13px;color:var(--muted)">Series A · $1M MRR target</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       SLIDE 12 — CLOSE
+  ══════════════════════════════════════════════════════════════════ -->
+  <div class="slide center" id="s12" style="background:radial-gradient(ellipse 80% 60% at 50% 50%, rgba(255,75,110,.2) 0%, transparent 70%), var(--dark)">
+    <div style="text-align:center">
+      <div style="font-size:64px;margin-bottom:24px">📡</div>
+      <h1>Qaramia</h1>
+      <p class="sub" style="max-width:480px;margin:16px auto 0">Every product on camera is a purchase opportunity.<br/>We built the infrastructure to prove it.</p>
+      <div style="margin-top:48px;display:flex;flex-direction:column;align-items:center;gap:8px">
+        <p style="font-size:15px;color:rgba(255,255,255,.4)">Get in touch</p>
+        <p style="font-size:20px;font-weight:700;color:var(--pink)">founder@qaramia.com</p>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /deck -->
+
+<!-- ── Navigation bar ── -->
+<div id="nav">
+  <button id="btn-prev" title="Previous (←)">←</button>
+  <div id="dots"></div>
+  <span id="counter">1 / 12</span>
+  <button id="btn-next" title="Next (→)">→</button>
+</div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const total  = slides.length;
+  let current  = 0;
+
+  const dotsEl    = document.getElementById('dots');
+  const counterEl = document.getElementById('counter');
+  const progressEl= document.getElementById('progress');
+  const dots      = [];
+
+  // Build dots
+  slides.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.addEventListener('click', () => goTo(i));
+    dotsEl.appendChild(d);
+    dots.push(d);
+  });
+
+  function goTo(n) {
+    if (n < 0 || n >= total) return;
+    slides[current].classList.remove('active');
+    slides[current].classList.add('exit');
+    setTimeout(() => slides[current < total ? current : current].classList.remove('exit'), 400);
+
+    const prev = current;
+    current = n;
+
+    slides[current].classList.add('active');
+
+    dots[prev].classList.remove('active');
+    dots[current].classList.add('active');
+    counterEl.textContent = (current + 1) + ' / ' + total;
+    progressEl.style.width = ((current + 1) / total * 100) + '%';
+
+    setTimeout(() => slides[prev].classList.remove('exit'), 420);
+  }
+
+  function next() { goTo(current + 1); }
+  function prev() { goTo(current - 1); }
+
+  document.getElementById('btn-next').addEventListener('click', next);
+  document.getElementById('btn-prev').addEventListener('click', prev);
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); next(); }
+    if (e.key === 'ArrowLeft')  { e.preventDefault(); prev(); }
+  });
+
+  // Touch swipe
+  let touchX = 0;
+  document.addEventListener('touchstart', e => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend',   e => {
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (Math.abs(dx) > 50) dx < 0 ? next() : prev();
+  });
+
+  // Init
+  goTo(0);
+</script>
+</body>
+</html>

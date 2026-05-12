@@ -1,0 +1,118 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthed() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isAuthed() && request.auth.uid == uid;
+    }
+
+    // Users
+    match /users/{uid} {
+      allow read: if isAuthed();
+      allow create: if isOwner(uid);
+      allow update: if isOwner(uid);
+
+      match /following/{targetUid} {
+        allow read, write: if isOwner(uid);
+      }
+      match /followers/{followerUid} {
+        allow read: if isAuthed();
+        allow write: if isAuthed();
+      }
+
+      // Wallet (viewer-side coin balance).
+      // Owner can read. Owner can decrement coins (e.g. when sending a gift).
+      // Increments come from the Stripe webhook (server-side, bypasses rules).
+      // TODO production: route all gift-related decrements through a Cloud Function
+      // to remove any client-side write capability on wallet.
+      match /wallet/{doc} {
+        allow read: if isOwner(uid);
+        allow write: if isOwner(uid) &&
+          request.resource.data.coins <= resource.data.coins;
+      }
+
+      // Creator-side diamond balance.
+      // Owner can read. Diamonds can only ever increase, and may be incremented
+      // by any authed user (gift senders). Cash-out is handled server-side.
+      // TODO production: migrate to Cloud Function for self-gift prevention.
+      match /creatorBalance/{doc} {
+        allow read: if isOwner(uid);
+        allow create: if isAuthed() &&
+          request.resource.data.keys().hasOnly(['diamonds', 'lifetimeDiamonds', 'updatedAt']) &&
+          request.resource.data.diamonds >= 0 &&
+          request.resource.data.lifetimeDiamonds >= 0;
+        allow update: if isAuthed() &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['diamonds', 'lifetimeDiamonds', 'updatedAt']) &&
+          request.resource.data.diamonds >= resource.data.diamonds &&
+          request.resource.data.lifetimeDiamonds >= resource.data.lifetimeDiamonds;
+      }
+    }
+
+    // Videos — public read so the feed loads without signing in
+    match /videos/{videoId} {
+      allow read: if true;
+      allow create: if isAuthed() && request.resource.data.authorUid == request.auth.uid;
+      allow update: if isAuthed() &&
+        // allow only specific counter fields to be incremented by any user
+        (request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['likeCount', 'commentCount', 'shareCount', 'viewCount'])
+        || isOwner(resource.data.authorUid));
+      allow delete: if isOwner(resource.data.authorUid);
+
+      match /likes/{uid} {
+        allow read: if true;
+        allow write: if isOwner(uid);
+      }
+
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isAuthed();
+        allow delete: if isOwner(resource.data.authorUid);
+      }
+    }
+
+    // Live streams — public read so discovery page works without signing in
+    match /streams/{streamId} {
+      allow read: if true;
+      allow create: if isAuthed() && request.resource.data.hostUid == request.auth.uid;
+      allow update: if isAuthed() &&
+        (isOwner(resource.data.hostUid) ||
+          // Any authenticated user can update viewerCount and totalGifts
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['viewerCount', 'totalGifts', 'peakViewerCount']));
+      allow delete: if isOwner(resource.data.hostUid);
+
+      match /gifts/{giftId} {
+        allow read: if true;
+        allow create: if isAuthed() && request.resource.data.senderUid == request.auth.uid;
+      }
+
+      match /cohosts/{cohostUid} {
+        allow read: if true;
+        allow write: if isAuthed();
+      }
+    }
+
+    // Co-host invites — written by hosts to other users' documents
+    match /users/{uid}/cohost_invites/{inviteId} {
+      allow read: if isOwner(uid);
+      allow write: if isAuthed();
+    }
+
+    // Ads — any authenticated user can read; only owner manages; any authed user can increment counters
+    match /ads/{adId} {
+      allow read: if isAuthed();
+      allow create: if isAuthed() && request.resource.data.advertiserId == request.auth.uid;
+      allow update: if isAuthed() && (
+        isOwner(resource.data.advertiserId) ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['impressions', 'clicks'])
+      );
+      allow delete: if isOwner(resource.data.advertiserId);
+    }
+  }
+}
