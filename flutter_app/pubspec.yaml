@@ -46,6 +46,8 @@ dependencies:
   url_launcher: ^6.3.0           # open affiliate / CTA URLs in the system browser
   path_provider: ^2.1.4          # temp dir for Agora snapshot files
   in_app_purchase: ^3.2.0        # App Store + Google Play coin pack purchases
+  speech_to_text: ^7.0.0         # native iOS Speech / Android SpeechRecognizer for live captions
+  shared_preferences: ^2.3.2     # persist viewer caption preference (CC on/off)
 
   # HTTP
   dio: ^5.7.0

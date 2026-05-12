@@ -9,6 +9,7 @@ import '../../providers/providers.dart';
 import '../../providers/sponsorship_providers.dart';
 import '../../services/cohost_service.dart';
 import '../../services/stream_service.dart' show InsufficientCoinsException;
+import '../../widgets/caption_overlay.dart';
 import '../../widgets/danmaku_overlay.dart';
 import '../../widgets/gift_animation_overlay.dart';
 import '../../widgets/gift_panel.dart';
@@ -252,6 +253,18 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
 
           // Gift animation — floating emoji per new gift
           GiftAnimationOverlay(streamId: widget.stream.id),
+
+          // Closed-caption overlay (read-only — host controls broadcast)
+          CaptionOverlay(streamId: widget.stream.id),
+
+          // CC toggle (viewer preference; persisted to SharedPreferences)
+          Positioned(
+            top: 0, right: 12,
+            child: SafeArea(child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: const CaptionToggleButton(),
+            )),
+          ),
 
           // Live-commerce surface — floating bag + slide-up drawer
           ProductDrawer(

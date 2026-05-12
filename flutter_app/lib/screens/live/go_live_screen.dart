@@ -6,6 +6,7 @@ import '../../models/cohost.dart';
 import '../../providers/providers.dart';
 import '../../services/cohost_service.dart';
 import '../../widgets/broadcast_scan_button.dart';
+import '../../widgets/captions_controller.dart';
 import '../../widgets/danmaku_overlay.dart';
 import '../../widgets/gift_animation_overlay.dart';
 import '../../widgets/product_drawer.dart';
@@ -377,6 +378,11 @@ class _BroadcastView extends ConsumerWidget {
           Positioned(
             right: 16, bottom: 24,
             child: BroadcastScanButton(engine: engine, streamId: stream.id),
+          ),
+          // Live captions toggle (top right, below the End/Invite row)
+          Positioned(
+            right: 16, top: 64,
+            child: CaptionsController(streamId: stream.id),
           ),
           // ProductDrawer — host sees the same surface viewers see, with a
           // dismiss-from-anywhere callback that clears the published products.
