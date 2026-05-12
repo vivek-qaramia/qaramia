@@ -16,6 +16,10 @@ class AppUser {
   final String? country;
   // ── Streamer earnings (estimated, until Stripe Connect payout matures) ────
   final double estimatedEarningsUsd;
+  // ── Stripe Connect payouts ────────────────────────────────────────────────
+  final String? stripeAccountId;
+  /// One of: 'not_started' | 'pending' | 'restricted' | 'active'
+  final String? stripeAccountStatus;
 
   const AppUser({
     required this.uid,
@@ -31,6 +35,8 @@ class AppUser {
     this.ageRange,
     this.country,
     this.estimatedEarningsUsd = 0,
+    this.stripeAccountId,
+    this.stripeAccountStatus,
   });
 
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
@@ -47,6 +53,8 @@ class AppUser {
         ageRange: json['ageRange'] as String?,
         country: json['country'] as String?,
         estimatedEarningsUsd: (json['estimatedEarningsUsd'] as num?)?.toDouble() ?? 0,
+        stripeAccountId: json['stripeAccountId'] as String?,
+        stripeAccountStatus: json['stripeAccountStatus'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -63,6 +71,8 @@ class AppUser {
         if (ageRange != null) 'ageRange': ageRange,
         if (country != null) 'country': country,
         if (estimatedEarningsUsd > 0) 'estimatedEarningsUsd': estimatedEarningsUsd,
+        if (stripeAccountId != null) 'stripeAccountId': stripeAccountId,
+        if (stripeAccountStatus != null) 'stripeAccountStatus': stripeAccountStatus,
       };
 
   AppUser copyWith({

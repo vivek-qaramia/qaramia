@@ -9,6 +9,11 @@ const iap = require('./iap');
 exports.validateApplePurchase  = iap.validateApplePurchase;
 exports.validateGooglePurchase = iap.validateGooglePurchase;
 
+// Stripe Connect onboarding for creator payouts
+const connect = require('./connect');
+exports.createConnectAccount        = connect.createConnectAccount;
+exports.refreshConnectOnboardingLink = connect.refreshConnectOnboardingLink;
+
 // Generate a short-lived Agora RTC token for a channel.
 // Called by both Flutter and Next.js clients before joining a stream.
 exports.getAgoraToken = functions.https.onCall(async (data, context) => {

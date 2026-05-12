@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/product_info.dart';
 import '../providers/ad_providers.dart';
 import '../providers/providers.dart';
+import '../providers/session_stats_provider.dart';
 import '../services/caption_engine.dart';
 import '../theme/brand.dart';
 
@@ -138,6 +139,8 @@ class _CaptionsControllerState extends ConsumerState<CaptionsController> {
       [ProductInfo(name: displayName, source: ProductSource.speech)],
       ad,
     );
+    ref.read(sessionStatsProvider(widget.streamId).notifier)
+        .onProductsPublished(matched: true);
   }
 
   @override

@@ -16,6 +16,8 @@ class AuthService {
     required String password,
     required String username,
     required String displayName,
+    String? ageRange,
+    String? country,
   }) async {
     final credential = await _auth.createUserWithEmailAndPassword(
       email: email,
@@ -26,6 +28,8 @@ class AuthService {
       username: username,
       displayName: displayName,
       createdAt: DateTime.now(),
+      ageRange: ageRange,
+      country: country,
     );
     await _db.collection('users').doc(user.uid).set(user.toJson());
     return user;

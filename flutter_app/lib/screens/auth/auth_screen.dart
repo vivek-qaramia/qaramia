@@ -18,6 +18,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   final _passwordCtrl = TextEditingController();
   final _usernameCtrl = TextEditingController();
   final _displayNameCtrl = TextEditingController();
+  final _countryCtrl = TextEditingController();
+  String? _ageRange;
+  static const _ageRanges = ['18-24', '25-34', '35-44', '45+'];
 
   @override
   void dispose() {
@@ -25,6 +28,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     _passwordCtrl.dispose();
     _usernameCtrl.dispose();
     _displayNameCtrl.dispose();
+    _countryCtrl.dispose();
     super.dispose();
   }
 
@@ -43,6 +47,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           password: _passwordCtrl.text,
           username: _usernameCtrl.text.trim().toLowerCase(),
           displayName: _displayNameCtrl.text.trim(),
+          ageRange: _ageRange,
+          country: _countryCtrl.text.trim().isEmpty ? null : _countryCtrl.text.trim(),
         );
       }
     } catch (e) {
@@ -112,6 +118,43 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     _field(_displayNameCtrl, 'Display Name', Icons.person),
                     const SizedBox(height: 16),
                     _field(_usernameCtrl, 'Username', Icons.alternate_email),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: _ageRange,
+                            isExpanded: true,
+                            decoration: InputDecoration(
+                              labelText: 'Age range (optional)',
+                              prefixIcon: const Icon(Icons.cake_outlined, color: Colors.white38),
+                              labelStyle: const TextStyle(color: Colors.white38),
+                              filled: true,
+                              fillColor: Colors.white10,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(color: Color(0xFFFF7043)),
+                              ),
+                            ),
+                            dropdownColor: const Color(0xFF1A0A2E),
+                            style: const TextStyle(color: Colors.white),
+                            items: [
+                              for (final r in _ageRanges)
+                                DropdownMenuItem(value: r, child: Text(r)),
+                            ],
+                            onChanged: (v) => setState(() => _ageRange = v),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _field(_countryCtrl, 'Country', Icons.public, capitalize: TextCapitalization.words),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 16),
                   ],
                   _field(_emailCtrl, 'Email', Icons.email, keyboardType: TextInputType.emailAddress),
@@ -188,11 +231,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     IconData icon, {
     bool obscure = false,
     TextInputType? keyboardType,
+    TextCapitalization capitalize = TextCapitalization.none,
   }) {
     return TextField(
       controller: ctrl,
       obscureText: obscure,
       keyboardType: keyboardType,
+      textCapitalization: capitalize,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         labelText: label,

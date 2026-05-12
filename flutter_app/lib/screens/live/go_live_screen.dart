@@ -11,6 +11,9 @@ import '../../widgets/danmaku_overlay.dart';
 import '../../widgets/gift_animation_overlay.dart';
 import '../../widgets/product_drawer.dart';
 import '../../widgets/room_background_selector.dart';
+import '../../widgets/session_earnings_card.dart';
+import '../../providers/session_stats_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 const _agoraAppId = String.fromEnvironment('AGORA_APP_ID', defaultValue: 'YOUR_AGORA_APP_ID');
 
@@ -115,8 +118,19 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   Future<void> _stopStream() async {
     if (_activeStream == null) return;
     final user = ref.read(authStateProvider).valueOrNull;
+    final streamId = _activeStream!.id;
+
+    // Commit estimated session earnings to the user doc before tearing down.
     if (user != null) {
-      await ref.read(streamServiceProvider).endStream(_activeStream!.id, user.uid);
+      final stats = ref.read(sessionStatsProvider(streamId));
+      if (stats.estimatedEarningsUsd > 0) {
+        FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+          'estimatedEarningsUsd':
+              FieldValue.increment(stats.estimatedEarningsUsd),
+        }).catchError((_) {});
+      }
+      ref.read(sessionStatsProvider(streamId).notifier).reset();
+      await ref.read(streamServiceProvider).endStream(streamId, user.uid);
     }
     await _engine?.leaveChannel();
     await _engine?.release();
@@ -384,6 +398,11 @@ class _BroadcastView extends ConsumerWidget {
             right: 16, top: 64,
             child: CaptionsController(streamId: stream.id),
           ),
+          // Session earnings card (left side, above the chat overlay)
+          Positioned(
+            left: 12, top: 64,
+            child: SessionEarningsCard(streamId: stream.id),
+          ),
           // ProductDrawer — host sees the same surface viewers see, with a
           // dismiss-from-anywhere callback that clears the published products.
           ProductDrawer(
@@ -391,6 +410,9 @@ class _BroadcastView extends ConsumerWidget {
             featuredAd: liveStream.featuredAd,
             onClose: () =>
                 ref.read(streamServiceProvider).dismissProducts(stream.id),
+            onAffiliateClick: () => ref
+                .read(sessionStatsProvider(stream.id).notifier)
+                .onAffiliateClick(),
           ),
         ],
       ),

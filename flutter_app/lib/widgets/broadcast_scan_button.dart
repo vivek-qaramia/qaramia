@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import '../models/product_info.dart';
 import '../providers/ad_providers.dart';
 import '../providers/providers.dart';
+import '../providers/session_stats_provider.dart';
 import '../theme/brand.dart';
 
 /// Host-side scan button shown on the live broadcast.
@@ -110,6 +111,8 @@ class _BroadcastScanButtonState extends ConsumerState<BroadcastScanButton> {
       // 3. Match ad + publish
       final ad = await ref.read(adServiceProvider).matchAd(products);
       await ref.read(streamServiceProvider).publishProducts(widget.streamId, products, ad);
+      ref.read(sessionStatsProvider(widget.streamId).notifier)
+          .onProductsPublished(matched: ad != null);
 
       _showStatus(
         products.length == 1

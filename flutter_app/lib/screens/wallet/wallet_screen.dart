@@ -5,6 +5,7 @@ import '../../providers/providers.dart';
 import '../../providers/wallet_providers.dart';
 import '../../theme/brand.dart';
 import '../../widgets/coin_pack_picker.dart';
+import 'payouts_screen.dart';
 
 class WalletScreen extends ConsumerWidget {
   const WalletScreen({super.key});
@@ -22,7 +23,18 @@ class WalletScreen extends ConsumerWidget {
     final balance = ref.watch(creatorBalanceProvider(user.uid)).valueOrNull;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Wallet')),
+      appBar: AppBar(
+        title: const Text('Wallet'),
+        actions: [
+          IconButton(
+            tooltip: 'Creator payouts',
+            icon: const Icon(Icons.account_balance_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const PayoutsScreen()),
+            ),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16),
