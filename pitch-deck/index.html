@@ -10,8 +10,8 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --pink:  #FF4B6E;
-    --cyan:  #25F4EE;
+    --pink:  #FF7043;   /* peach — primary brand */
+    --cyan:  #FFD166;   /* butter yellow — accent */
     --yc:    #F26722;
     --dark:  #0A0A0F;
     --card:  #111118;
@@ -134,7 +134,7 @@
   .comp-table tr:hover td { background: rgba(255,255,255,.02); }
   .tick  { color: var(--cyan); font-size: 18px; }
   .cross { color: rgba(255,255,255,0.2); font-size: 18px; }
-  .q-col { background: rgba(255,75,110,0.06); }
+  .q-col { background: rgba(255,112,67,0.06); }
 
   /* ── Team card ── */
   .team-card { text-align: center; }
@@ -152,8 +152,8 @@
   hr { border: none; border-top: 1px solid var(--line); margin: 24px 0; }
 
   /* ── Slide 1 — Cover ── */
-  #s1 { background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(255,75,110,.18) 0%, transparent 70%),
-                    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(37,244,238,.1) 0%, transparent 60%),
+  #s1 { background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(255,112,67,.18) 0%, transparent 70%),
+                    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(255,209,102,.1) 0%, transparent 60%),
                     var(--dark); }
   .logo-mark { font-size: 80px; margin-bottom: 24px; line-height: 1; }
   .wordmark { font-size: clamp(52px, 7vw, 96px); font-weight: 900; letter-spacing: -.04em; }
@@ -169,10 +169,10 @@
   #s2 { background: var(--dark); }
 
   /* ── Slide 5 — Market ── */
-  #s5 { background: radial-gradient(ellipse 60% 50% at 10% 80%, rgba(37,244,238,.08) 0%, transparent 60%), var(--dark); }
+  #s5 { background: radial-gradient(ellipse 60% 50% at 10% 80%, rgba(255,209,102,.08) 0%, transparent 60%), var(--dark); }
 
   /* ── Slide 9 — Ask ── */
-  #s9 { background: radial-gradient(ellipse 70% 60% at 50% 100%, rgba(255,75,110,.15) 0%, transparent 65%), var(--dark); }
+  #s9 { background: radial-gradient(ellipse 70% 60% at 50% 100%, rgba(255,112,67,.15) 0%, transparent 65%), var(--dark); }
 
   /* ── Progress bar ── */
   #progress {
@@ -217,7 +217,7 @@
   <div class="slide center" id="s1">
     <div class="logo-mark">📡</div>
     <div class="wordmark">Qaramia</div>
-    <p class="tagline">The live streaming platform where every product on camera is a purchase opportunity</p>
+    <p class="tagline">The live streaming platform where every product mentioned — seen or heard — is a purchase opportunity</p>
     <div class="yc-badge">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect width="16" height="16" rx="3" fill="#F26722"/><text x="3" y="12" fill="white" font-size="10" font-weight="900" font-family="sans-serif">Y</text></svg>
       YC Application · S25
@@ -258,39 +258,57 @@
   </div>
 
   <!-- ══════════════════════════════════════════════════════════════════
-       SLIDE 3 — SOLUTION
+       SLIDE 3 — SOLUTION (dual-input multimodal pipeline)
   ══════════════════════════════════════════════════════════════════ -->
   <div class="slide center" id="s3">
-    <div class="max-800 flex col" style="align-items:center">
+    <div class="max-960 full flex col" style="align-items:center">
       <span class="label cyan">The Solution</span>
-      <h2 style="text-align:center">Qaramia <span class="accent-cyan">auto-identifies every product</span> on screen and turns it into a targeted ad — in real time</h2>
-      <div class="flow mt-40" style="width:100%">
-        <div class="flow-step">
-          <div class="flow-icon">🎥</div>
-          <div class="flow-label">Streamer goes live</div>
+      <h2 style="text-align:center">Qaramia <span class="accent-cyan">auto-identifies every product</span> — visible <em>or</em> spoken — and turns it into a targeted ad in real time</h2>
+
+      <!-- Two-track convergent flow -->
+      <div class="flex col gap-16 mt-40" style="width:100%;align-items:stretch">
+
+        <!-- Visual track -->
+        <div class="card" style="display:flex;align-items:center;gap:16px;padding:20px 24px">
+          <span style="font-size:11px;font-weight:800;letter-spacing:.1em;color:var(--pink);min-width:64px">VISUAL</span>
+          <div class="flow" style="flex:1;gap:0;justify-content:flex-start">
+            <div class="flow-step" style="min-width:80px"><div class="flow-icon" style="width:44px;height:44px;font-size:18px">📷</div><div class="flow-label">Camera frame</div></div>
+            <div class="flow-arrow" style="padding-bottom:22px">→</div>
+            <div class="flow-step" style="min-width:80px"><div class="flow-icon" style="width:44px;height:44px;font-size:18px">📦</div><div class="flow-label">Barcode + Vision AI</div></div>
+            <div class="flow-arrow" style="padding-bottom:22px">→</div>
+            <div class="flow-step" style="min-width:80px"><div class="flow-icon" style="width:44px;height:44px;font-size:18px">🏷️</div><div class="flow-label">Product detected</div></div>
+          </div>
         </div>
-        <div class="flow-arrow">→</div>
-        <div class="flow-step">
-          <div class="flow-icon">📦</div>
-          <div class="flow-label">Camera sees product</div>
+
+        <!-- Audio track -->
+        <div class="card" style="display:flex;align-items:center;gap:16px;padding:20px 24px;border-color:rgba(255,209,102,0.25)">
+          <span style="font-size:11px;font-weight:800;letter-spacing:.1em;color:var(--cyan);min-width:64px">AUDIO</span>
+          <div class="flow" style="flex:1;gap:0;justify-content:flex-start">
+            <div class="flow-step" style="min-width:80px"><div class="flow-icon" style="width:44px;height:44px;font-size:18px">🎙</div><div class="flow-label">Streamer speech</div></div>
+            <div class="flow-arrow" style="padding-bottom:22px">→</div>
+            <div class="flow-step" style="min-width:80px"><div class="flow-icon" style="width:44px;height:44px;font-size:18px">📝</div><div class="flow-label">Live transcript</div></div>
+            <div class="flow-arrow" style="padding-bottom:22px">→</div>
+            <div class="flow-step" style="min-width:80px"><div class="flow-icon" style="width:44px;height:44px;font-size:18px">🏷️</div><div class="flow-label">Product mentioned</div></div>
+          </div>
         </div>
-        <div class="flow-arrow">→</div>
-        <div class="flow-step">
-          <div class="flow-icon">🧠</div>
-          <div class="flow-label">AI identifies brand &amp; SKU</div>
-        </div>
-        <div class="flow-arrow">→</div>
-        <div class="flow-step">
-          <div class="flow-icon">🎯</div>
-          <div class="flow-label">Matched ad surfaces</div>
-        </div>
-        <div class="flow-arrow">→</div>
-        <div class="flow-step">
-          <div class="flow-icon">💳</div>
-          <div class="flow-label">Viewer purchases</div>
+
+        <!-- Converge arrow -->
+        <div style="text-align:center;font-size:24px;color:var(--line);margin:-4px 0">↓</div>
+
+        <!-- Convergent path -->
+        <div class="card" style="display:flex;align-items:center;gap:16px;padding:20px 24px;background:linear-gradient(90deg,rgba(255,112,67,.08),rgba(255,209,102,.08));border-color:rgba(255,112,67,0.3)">
+          <span style="font-size:11px;font-weight:800;letter-spacing:.1em;color:#fff;min-width:64px">MATCH</span>
+          <div class="flow" style="flex:1;gap:0;justify-content:flex-start">
+            <div class="flow-step" style="min-width:80px"><div class="flow-icon" style="width:44px;height:44px;font-size:18px">🎯</div><div class="flow-label">Ad matched</div></div>
+            <div class="flow-arrow" style="padding-bottom:22px">→</div>
+            <div class="flow-step" style="min-width:80px"><div class="flow-icon" style="width:44px;height:44px;font-size:18px">📲</div><div class="flow-label">Drawer surfaces</div></div>
+            <div class="flow-arrow" style="padding-bottom:22px">→</div>
+            <div class="flow-step" style="min-width:80px"><div class="flow-icon" style="width:44px;height:44px;font-size:18px">💳</div><div class="flow-label">Viewer purchases</div></div>
+          </div>
         </div>
       </div>
-      <p class="mt-40" style="text-align:center;max-width:560px">No manual tagging. No sponsor negotiations. No missed moments.<br/>The camera is the inventory system.</p>
+
+      <p class="mt-24" style="text-align:center;max-width:640px">Two detection paths. One conversion surface.<br/>The camera <em>and</em> the microphone are the inventory system.</p>
     </div>
   </div>
 
@@ -305,22 +323,68 @@
         <div class="card card-sm">
           <div style="font-size:28px;margin-bottom:10px">🔍</div>
           <h3 style="font-size:17px;margin-bottom:6px">Visual Product Scanner</h3>
-          <p style="font-size:14px">Barcode scan (instant, free) with AI Vision fallback via Claude. Works on any product — branded goods, food, electronics, fashion.</p>
+          <p style="font-size:14px">Barcode (instant, free) + Claude Vision fallback. Identifies branded goods, food, electronics, fashion from any frame the camera sees.</p>
+        </div>
+        <div class="card card-sm" style="border-color:rgba(255,209,102,0.3)">
+          <div style="font-size:28px;margin-bottom:10px">🎙</div>
+          <h3 style="font-size:17px;margin-bottom:6px">Live Captions + Spoken Product Detection</h3>
+          <p style="font-size:14px">Real-time speech-to-text via Web Speech API. Captions improve accessibility and session length; the same transcript triggers ads when products are <em>mentioned</em>, not just shown.</p>
         </div>
         <div class="card card-sm">
           <div style="font-size:28px;margin-bottom:10px">🎯</div>
-          <h3 style="font-size:17px;margin-bottom:6px">Contextual Ad Matching</h3>
-          <p style="font-size:14px">Advertisers bid on product categories. When a match is detected, the relevant ad card overlays for viewers — CPMs 3–5× platform average.</p>
+          <h3 style="font-size:17px;margin-bottom:6px">Multimodal Ad Matching</h3>
+          <p style="font-size:14px">Visual + audio signals feed one ad matcher. Advertisers bid on keywords or categories; CPMs 3–5× platform average; spoken endorsements command a 1.5–2× premium.</p>
         </div>
         <div class="card card-sm">
           <div style="font-size:28px;margin-bottom:10px">✨</div>
-          <h3 style="font-size:17px;margin-bottom:6px">AR Lenses &amp; Studio Tools</h3>
-          <p style="font-size:14px">Snap Camera Kit integration, 15 CapCut-style video filters, voice effects, virtual backgrounds. Creator retention through best-in-class production tools.</p>
+          <h3 style="font-size:17px;margin-bottom:6px">Live Commerce Engine</h3>
+          <p style="font-size:14px">Snap AR lenses, video filters, virtual backgrounds, co-host room mode, danmaku chat, coin/diamond gifting with Stripe payout, sponsored gifts tied to detected products.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       SLIDE 4b — MULTIMODAL ADVANTAGE (the speech moat)
+  ══════════════════════════════════════════════════════════════════ -->
+  <div class="slide" id="s4b">
+    <div class="max-960 full">
+      <span class="label cyan">Why Multimodal Wins</span>
+      <h2>Adding audio detection roughly <span class="accent-cyan">doubles the ad inventory</span> — and opens markets visual-only platforms can't reach</h2>
+      <div class="card-grid grid-3 mt-40" style="gap:16px">
+        <div class="card stat">
+          <div class="num" style="color:var(--pink)">2×</div>
+          <div class="desc" style="font-size:13px;margin-top:6px">Monetizable moments per stream<br/>(visual + spoken mentions)</div>
+        </div>
+        <div class="card stat">
+          <div class="num" style="color:var(--cyan)">1.5–2×</div>
+          <div class="desc" style="font-size:13px;margin-top:6px">CPM premium on spoken endorsements vs passive visual</div>
+        </div>
+        <div class="card stat">
+          <div class="num" style="color:#fff">100+</div>
+          <div class="desc" style="font-size:13px;margin-top:6px">Languages recognised — direct accelerator for LatAm + EU expansion</div>
+        </div>
+      </div>
+      <div class="card-grid grid-2 mt-16" style="gap:16px">
+        <div class="card card-sm">
+          <div style="font-size:24px;margin-bottom:8px">♿</div>
+          <h3 style="font-size:16px;margin-bottom:4px">Accessibility unlocks regulated buyers</h3>
+          <p style="font-size:13px">EU Accessibility Act (June 2025), ADA, UK Equality Act all push platforms toward auto-captions. <strong style="color:#fff">466M</strong> people with hearing loss globally. Enterprise, healthcare, gov't buyers won't advertise on inaccessible platforms.</p>
         </div>
         <div class="card card-sm">
-          <div style="font-size:28px;margin-bottom:10px">💬</div>
-          <h3 style="font-size:17px;margin-bottom:6px">Danmaku &amp; Co-Hosting</h3>
-          <p style="font-size:14px">Bilibili-style bullet comments, real-time gifting, multi-host room mode. Engagement mechanics proven to 3× session length.</p>
+          <div style="font-size:24px;margin-bottom:8px">🔎</div>
+          <h3 style="font-size:16px;margin-bottom:4px">New SaaS layer: Brand Listening</h3>
+          <p style="font-size:13px">Every transcript is a searchable record. Brands pay for "show me every mention of my brand on Qaramia last week." Comparable products (Sprinklr, Talkwalker) charge <strong style="color:#fff">$20K–$200K/year</strong>.</p>
+        </div>
+        <div class="card card-sm">
+          <div style="font-size:24px;margin-bottom:8px">🎧</div>
+          <h3 style="font-size:16px;margin-bottom:4px">Audio-only streams now monetizable</h3>
+          <p style="font-size:13px">Podcasts, music + commentary, voice-only formats — categories that visual-only commerce platforms cannot serve.</p>
+        </div>
+        <div class="card card-sm">
+          <div style="font-size:24px;margin-bottom:8px">🛡</div>
+          <h3 style="font-size:16px;margin-bottom:4px">Multimodal moat</h3>
+          <p style="font-size:13px">Two detection signals + a transcript flywheel = harder to copy than visual alone. No incumbent ships audio-triggered ads today.</p>
         </div>
       </div>
     </div>
@@ -401,6 +465,13 @@
             <p style="font-size:14px">$19/month for advanced filters, custom AR lenses, analytics dashboard, and priority ad matching. Converts to SaaS recurring revenue.</p>
           </div>
         </div>
+        <div class="card" style="display:flex;align-items:center;gap:24px;border-color:rgba(255,209,102,0.25)">
+          <div style="font-size:36px;min-width:52px">🔎</div>
+          <div>
+            <h3 style="font-size:18px;margin-bottom:4px">Brand Listening &amp; Mention Analytics <span style="font-size:12px;color:var(--cyan);font-weight:700">— unlocked by speech</span></h3>
+            <p style="font-size:14px">Every transcript is searchable. Brands pay $20K–$200K/year to track mentions of their products and competitors across Qaramia streams. Pure-margin SaaS layer on top of the ad model.</p>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -411,13 +482,13 @@
   <div class="slide" id="s7">
     <div class="max-800">
       <span class="label">Why Now</span>
-      <h2>Three forces converging in <span class="accent">2025</span></h2>
+      <h2>Four forces converging in <span class="accent">2026</span></h2>
       <div class="flex col gap-20 mt-40">
         <div class="prob-item">
           <div class="prob-icon">🧠</div>
           <div>
-            <h3>AI vision is finally accurate enough</h3>
-            <p>Claude Vision, GPT-4o, and barcode SDKs now identify products in real-world, imperfect lighting with &gt;90% accuracy. This wasn't true two years ago.</p>
+            <h3>Multimodal AI is the new battleground</h3>
+            <p>Claude Vision, GPT-4o, Gemini Live — all shipped vision + audio in 2024/25. Web Speech API now ships natively in every major browser. The infrastructure to identify products from both pixels and speech is production-ready for the first time.</p>
           </div>
         </div>
         <div class="prob-item">
@@ -428,10 +499,17 @@
           </div>
         </div>
         <div class="prob-item">
+          <div class="prob-icon">♿</div>
+          <div>
+            <h3>Accessibility is becoming a regulatory floor</h3>
+            <p>EU Accessibility Act (in force June 2025), expanded ADA digital rules, UK Equality Act enforcement — every consumer platform now needs auto-captions. Qaramia ships this as a feature, not a compliance burden.</p>
+          </div>
+        </div>
+        <div class="prob-item">
           <div class="prob-icon">📵</div>
           <div>
             <h3>TikTok's regulatory uncertainty creates a vacuum</h3>
-            <p>A potential US ban leaves 170M TikTok users and tens of thousands of live commerce creators actively looking for an alternative. The window to capture them is now.</p>
+            <p>The ongoing US scrutiny and the broader trust gap leave 170M TikTok users and tens of thousands of live commerce creators actively looking for an alternative.</p>
           </div>
         </div>
       </div>
@@ -451,8 +529,9 @@
             <tr>
               <th>Platform</th>
               <th>Live Streaming</th>
-              <th>Creator Tools</th>
               <th>Visual Product ID</th>
+              <th>Audio Product ID</th>
+              <th>Live Captions</th>
               <th>Contextual Ads</th>
               <th class="q-col" style="color:var(--pink)">Qaramia</th>
             </tr>
@@ -461,8 +540,9 @@
             <tr>
               <td><strong>TikTok Live</strong></td>
               <td><span class="tick">✓</span></td>
-              <td><span class="tick">✓</span></td>
               <td><span class="cross">✗</span></td>
+              <td><span class="cross">✗</span></td>
+              <td>Partial</td>
               <td><span class="cross">✗</span></td>
               <td class="q-col"><span class="tick">✓</span></td>
             </tr>
@@ -472,29 +552,33 @@
               <td><span class="cross">✗</span></td>
               <td><span class="cross">✗</span></td>
               <td><span class="cross">✗</span></td>
+              <td><span class="cross">✗</span></td>
               <td class="q-col"><span class="tick">✓</span></td>
             </tr>
             <tr>
               <td><strong>Amazon Live</strong></td>
               <td><span class="tick">✓</span></td>
-              <td><span class="cross">✗</span></td>
               <td>Manual only</td>
+              <td><span class="cross">✗</span></td>
+              <td><span class="cross">✗</span></td>
               <td><span class="cross">✗</span></td>
               <td class="q-col"><span class="tick">✓</span></td>
             </tr>
             <tr>
               <td><strong>Twitch</strong></td>
               <td><span class="tick">✓</span></td>
-              <td><span class="tick">✓</span></td>
               <td><span class="cross">✗</span></td>
+              <td><span class="cross">✗</span></td>
+              <td>Partial</td>
               <td><span class="cross">✗</span></td>
               <td class="q-col"><span class="tick">✓</span></td>
             </tr>
             <tr>
               <td><strong>YouTube Live</strong></td>
               <td><span class="tick">✓</span></td>
-              <td><span class="tick">✓</span></td>
               <td><span class="cross">✗</span></td>
+              <td><span class="cross">✗</span></td>
+              <td><span class="tick">✓</span></td>
               <td><span class="cross">✗</span></td>
               <td class="q-col"><span class="tick">✓</span></td>
             </tr>
@@ -502,7 +586,7 @@
         </table>
       </div>
       <p class="mt-24" style="font-size:14px;color:var(--muted)">
-        <strong style="color:#fff">Moat:</strong> The visual product ID pipeline is the defensible layer. As Qaramia's product catalog and advertiser network grow, matching accuracy improves — a flywheel that incumbents cannot shortcut by copying the UI.
+        <strong style="color:#fff">Moat:</strong> Multimodal product detection (visual + speech) is the defensible layer. As Qaramia's product catalog, transcript corpus, and advertiser network grow, matching accuracy improves on both signals — a compounding flywheel that incumbents cannot shortcut by copying the UI.
       </p>
     </div>
   </div>
@@ -511,29 +595,37 @@
        SLIDE 9 — TRACTION
   ══════════════════════════════════════════════════════════════════ -->
   <div class="slide" id="s9">
-    <div class="max-800">
+    <div class="max-960">
       <span class="label">Traction</span>
-      <h2>Built in weeks. Core technology proven.</h2>
-      <div class="card-grid grid-2 mt-40" style="gap:16px">
+      <h2>Built in weeks. Multimodal pipeline shipped.</h2>
+      <div class="card-grid grid-3 mt-40" style="gap:14px">
         <div class="card stat">
-          <div class="num" style="color:var(--pink)">✓</div>
-          <div class="desc" style="font-size:15px;margin-top:10px">Full-stack web + mobile app<br/>shipped on Firebase + Agora</div>
+          <div class="num" style="color:var(--pink);font-size:36px">✓</div>
+          <div class="desc" style="font-size:13px;margin-top:8px">Full-stack web + Flutter mobile on Firebase + Agora</div>
         </div>
         <div class="card stat">
-          <div class="num" style="color:var(--cyan)">✓</div>
-          <div class="desc" style="font-size:15px;margin-top:10px">Real-time product ID pipeline<br/>live in production</div>
+          <div class="num" style="color:var(--cyan);font-size:36px">✓</div>
+          <div class="desc" style="font-size:13px;margin-top:8px">Visual product detection — barcode + Claude Vision</div>
         </div>
         <div class="card stat">
-          <div class="num" style="color:var(--yc)">✓</div>
-          <div class="desc" style="font-size:15px;margin-top:10px">Snap Camera Kit AR integration<br/>+ 15 CapCut-style filters</div>
+          <div class="num" style="color:var(--cyan);font-size:36px">✓</div>
+          <div class="desc" style="font-size:13px;margin-top:8px">Live captions + spoken product detection</div>
         </div>
         <div class="card stat">
-          <div class="num" style="color:#fff">✓</div>
-          <div class="desc" style="font-size:15px;margin-top:10px">Multi-host room mode with<br/>virtual background compositing</div>
+          <div class="num" style="color:var(--yc);font-size:36px">✓</div>
+          <div class="desc" style="font-size:13px;margin-top:8px">Self-serve ad console + keyword/category matching</div>
+        </div>
+        <div class="card stat">
+          <div class="num" style="color:var(--yc);font-size:36px">✓</div>
+          <div class="desc" style="font-size:13px;margin-top:8px">Coin/Diamond gifting w/ Stripe Connect payout</div>
+        </div>
+        <div class="card stat">
+          <div class="num" style="color:#fff;font-size:36px">✓</div>
+          <div class="desc" style="font-size:13px;margin-top:8px">Snap AR, multi-host room mode, video filters</div>
         </div>
       </div>
-      <div class="card mt-16" style="border-color:rgba(255,75,110,.3);background:rgba(255,75,110,.05)">
-        <p style="font-size:15px"><strong style="color:#fff">Next milestone (30 days):</strong> Onboard 50 beta creators. Target: 3 brands signed to advertising pilot, first $10K GMV through visual ad conversion.</p>
+      <div class="card mt-16" style="border-color:rgba(255,112,67,.3);background:rgba(255,112,67,.05)">
+        <p style="font-size:15px"><strong style="color:#fff">Next milestone (30 days):</strong> Onboard 50 beta creators across UK + US Hispanic markets. Target: 3 anchor brands signed to ad pilot, first $10K GMV through multimodal ad conversion, first 100 paid coin packs.</p>
       </div>
     </div>
   </div>
@@ -619,11 +711,11 @@
   <!-- ══════════════════════════════════════════════════════════════════
        SLIDE 12 — CLOSE
   ══════════════════════════════════════════════════════════════════ -->
-  <div class="slide center" id="s12" style="background:radial-gradient(ellipse 80% 60% at 50% 50%, rgba(255,75,110,.2) 0%, transparent 70%), var(--dark)">
+  <div class="slide center" id="s12" style="background:radial-gradient(ellipse 80% 60% at 50% 50%, rgba(255,112,67,.2) 0%, transparent 70%), var(--dark)">
     <div style="text-align:center">
       <div style="font-size:64px;margin-bottom:24px">📡</div>
       <h1>Qaramia</h1>
-      <p class="sub" style="max-width:480px;margin:16px auto 0">Every product on camera is a purchase opportunity.<br/>We built the infrastructure to prove it.</p>
+      <p class="sub" style="max-width:480px;margin:16px auto 0">Every product mentioned — seen or heard — is a purchase opportunity.<br/>We built the infrastructure to prove it.</p>
       <div style="margin-top:48px;display:flex;flex-direction:column;align-items:center;gap:8px">
         <p style="font-size:15px;color:rgba(255,255,255,.4)">Get in touch</p>
         <p style="font-size:20px;font-weight:700;color:var(--pink)">founder@qaramia.com</p>
