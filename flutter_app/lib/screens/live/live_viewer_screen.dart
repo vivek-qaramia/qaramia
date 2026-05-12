@@ -4,10 +4,13 @@ import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import '../../models/live_stream.dart';
 import '../../models/chat_message.dart';
 import '../../models/gift.dart';
+import '../../models/sponsorship.dart';
 import '../../providers/providers.dart';
+import '../../providers/sponsorship_providers.dart';
 import '../../services/cohost_service.dart';
 import '../../services/stream_service.dart' show InsufficientCoinsException;
 import '../../widgets/danmaku_overlay.dart';
+import '../../widgets/gift_animation_overlay.dart';
 import '../../widgets/gift_panel.dart';
 import '../../widgets/product_drawer.dart';
 import '../../widgets/room_background_selector.dart';
@@ -133,18 +136,44 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
     );
   }
 
-  Future<void> _sendGift(GiftType gift) async {
+  Future<void> _sendGift(GiftType gift, {Sponsorship? sponsorship}) async {
     final user = ref.read(authStateProvider).valueOrNull;
     if (user == null) return;
     final currentUser = ref.read(currentUserProvider).valueOrNull;
     try {
+      // If this is a sponsored gift, the viewer's coin cost may be discounted
+      // or zero. Construct a runtime GiftType with the adjusted price so the
+      // transaction debits the right amount.
+      final effectiveGift = sponsorship == null
+          ? gift
+          : GiftType(
+              id: gift.id,
+              name: gift.name,
+              emoji: gift.emoji,
+              coinCost: sponsorship.viewerCoinCost(gift.coinCost),
+              diamondYield: gift.diamondYield,
+              tier: gift.tier,
+              animationAsset: gift.animationAsset,
+            );
+
       await ref.read(streamServiceProvider).sendGift(
         streamId: widget.stream.id,
         senderUid: user.uid,
         senderUsername: currentUser?.username ?? 'viewer',
         recipientUid: widget.stream.hostUid,
-        giftType: gift,
+        giftType: effectiveGift,
       );
+
+      // Bill the sponsoring brand for this send (best-effort, doesn't block UX)
+      if (sponsorship != null) {
+        ref.read(sponsorshipServiceProvider).recordSend(
+          sponsorship: sponsorship,
+          streamId: widget.stream.id,
+          streamerUid: widget.stream.hostUid,
+          senderUid: user.uid,
+        ).catchError((_) {});
+      }
+
       // Fanout to danmaku chat
       await ref.read(danmakuServiceProvider).sendMessage(
         streamId: widget.stream.id,
@@ -220,6 +249,9 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
 
           // Danmaku overlay (floating comments)
           DanmakuOverlay(messages: messages),
+
+          // Gift animation — floating emoji per new gift
+          GiftAnimationOverlay(streamId: widget.stream.id),
 
           // Live-commerce surface — floating bag + slide-up drawer
           ProductDrawer(
@@ -376,7 +408,10 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
               left: 0,
               right: 0,
               bottom: 80,
-              child: GiftPanel(onGiftSelected: _sendGift),
+              child: GiftPanel(
+                stream: liveStream,
+                onGiftSelected: (gift, {sponsorship}) => _sendGift(gift, sponsorship: sponsorship),
+              ),
             ),
         ],
       ),

@@ -112,6 +112,26 @@ service cloud.firestore {
       allow write: if isAuthed();
     }
 
+    // Sponsorships (sponsored gifts) — any authenticated user can read to render
+    // brand-styled gifts in the picker; only the owning brand may create/update;
+    // any authed user may increment totalSendCount / totalBrandSpendUsd via the
+    // recordSend code path (those increments are bounded to specific fields).
+    match /sponsorships/{sponsorshipId} {
+      allow read: if isAuthed();
+      allow create: if isAuthed() && request.resource.data.brandId == request.auth.uid;
+      allow update: if isAuthed() && (
+        isOwner(resource.data.brandId) ||
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['totalSendCount', 'totalBrandSpendUsd'])
+      );
+      allow delete: if isOwner(resource.data.brandId);
+
+      match /sends/{sendId} {
+        allow read: if isOwner(get(/databases/$(database)/documents/sponsorships/$(sponsorshipId)).data.brandId);
+        allow create: if isAuthed() && request.resource.data.senderUid == request.auth.uid;
+      }
+    }
+
     // Ads — any authenticated user can read; only owner manages; any authed user can increment counters
     match /ads/{adId} {
       allow read: if isAuthed();

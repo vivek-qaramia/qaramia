@@ -7,6 +7,7 @@ import '../../providers/providers.dart';
 import '../../services/cohost_service.dart';
 import '../../widgets/broadcast_scan_button.dart';
 import '../../widgets/danmaku_overlay.dart';
+import '../../widgets/gift_animation_overlay.dart';
 import '../../widgets/product_drawer.dart';
 import '../../widgets/room_background_selector.dart';
 
@@ -291,6 +292,7 @@ class _BroadcastView extends ConsumerWidget {
             controller: VideoViewController(rtcEngine: engine, canvas: const VideoCanvas(uid: 0)),
           ),
           DanmakuOverlay(messages: messages),
+          GiftAnimationOverlay(streamId: stream.id),
           Positioned(
             top: 0, left: 0, right: 0,
             child: SafeArea(
