@@ -54,46 +54,73 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
 
     final user = ref.read(authStateProvider).valueOrNull;
     final currentUser = ref.read(currentUserProvider).valueOrNull;
-    if (user == null || currentUser == null) return;
-
-    final stream = await ref.read(streamServiceProvider).startStream(
-      hostUid: user.uid,
-      hostUsername: currentUser.username,
-      hostAvatarUrl: currentUser.avatarUrl,
-      title: title,
-      category: _category,
-    );
-
-    _engine = createAgoraRtcEngine();
-    await _engine!.initialize(RtcEngineContext(appId: _agoraAppId));
-    await _engine!.enableVideo();
-    await _engine!.setClientRole(role: ClientRoleType.clientRoleBroadcaster);
-
-    // Apply virtual background if room mode is on
-    if (_roomMode) {
-      await _applyVirtualBackground(_selectedBgId);
+    if (user == null) {
+      _showError('Not signed in');
+      return;
+    }
+    if (currentUser == null) {
+      _showError('User profile not loaded. Pull-to-refresh on Profile, then try again.');
+      return;
+    }
+    if (_agoraAppId == 'YOUR_AGORA_APP_ID' || _agoraAppId.isEmpty) {
+      _showError('AGORA_APP_ID not set. Re-run with --dart-define=AGORA_APP_ID=…');
+      return;
     }
 
-    // Apply the chosen filter's native beauty option (color overlay is done
-    // in the widget tree). Safe to call even for Normal — Agora will disable.
-    await _applyFilterToEngine(VideoFilter.byId(_filterId));
+    try {
+      final stream = await ref.read(streamServiceProvider).startStream(
+        hostUid: user.uid,
+        hostUsername: currentUser.username,
+        hostAvatarUrl: currentUser.avatarUrl,
+        title: title,
+        category: _category,
+      );
 
-    await _engine!.startPreview();
-    await _engine!.joinChannel(
-      token: '',
-      channelId: stream.agoraChannel,
-      uid: 0,
-      options: const ChannelMediaOptions(
-        clientRoleType: ClientRoleType.clientRoleBroadcaster,
-        publishCameraTrack: true,
-        publishMicrophoneTrack: true,
+      _engine = createAgoraRtcEngine();
+      await _engine!.initialize(RtcEngineContext(appId: _agoraAppId));
+      await _engine!.enableVideo();
+      await _engine!.setClientRole(role: ClientRoleType.clientRoleBroadcaster);
+
+      // Apply virtual background if room mode is on
+      if (_roomMode) {
+        await _applyVirtualBackground(_selectedBgId);
+      }
+
+      // Apply the chosen filter's native beauty option (color overlay is done
+      // in the widget tree). Safe to call even for Normal — Agora will disable.
+      await _applyFilterToEngine(VideoFilter.byId(_filterId));
+
+      await _engine!.startPreview();
+      await _engine!.joinChannel(
+        token: '',
+        channelId: stream.agoraChannel,
+        uid: 0,
+        options: const ChannelMediaOptions(
+          clientRoleType: ClientRoleType.clientRoleBroadcaster,
+          publishCameraTrack: true,
+          publishMicrophoneTrack: true,
+        ),
+      );
+
+      setState(() {
+        _activeStream = stream;
+        _isStreaming = true;
+      });
+    } catch (e, stack) {
+      debugPrint('Go Live failed: $e\n$stack');
+      _showError('Go Live failed: $e');
+    }
+  }
+
+  void _showError(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: Colors.red.shade900,
+        duration: const Duration(seconds: 6),
       ),
     );
-
-    setState(() {
-      _activeStream = stream;
-      _isStreaming = true;
-    });
   }
 
   Future<void> _applyVirtualBackground(String bgId) async {

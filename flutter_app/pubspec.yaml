@@ -65,6 +65,8 @@ dev_dependencies:
   riverpod_generator: ^2.6.1
   custom_lint: ^0.7.0
   riverpod_lint: ^2.6.1
+  flutter_launcher_icons: ^0.14.1
+  flutter_native_splash: ^2.4.1
 
 flutter:
   uses-material-design: true
@@ -72,3 +74,37 @@ flutter:
     - assets/images/
     - assets/animations/
     - assets/branding/
+    - assets/icons/
+
+# ── App icon generation ──────────────────────────────────────────────────────
+# Run: dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: "ic_launcher"
+  ios: true
+  remove_alpha_channel_ios: true       # iOS rejects icons with alpha
+  image_path: "assets/icons/app_icon.png"
+  adaptive_icon_background: "#1F0B14"   # Qaramia dark wine
+  adaptive_icon_foreground: "assets/icons/app_icon.png"
+  min_sdk_android: 21
+  web:
+    generate: false
+  windows:
+    generate: false
+  macos:
+    generate: false
+
+# ── Splash screen generation ─────────────────────────────────────────────────
+# Run: dart run flutter_native_splash:create
+flutter_native_splash:
+  color: "#1F0B14"                     # dark wine — matches QBrand.wine
+  color_dark: "#14060C"                # darker variant for dark mode
+  image: "assets/icons/splash.png"
+  image_dark: "assets/icons/splash.png"
+  android_12:
+    image: "assets/icons/splash.png"
+    color: "#1F0B14"
+    icon_background_color: "#1F0B14"
+  ios_content_mode: center
+  android: true
+  ios: true
+  web: false
