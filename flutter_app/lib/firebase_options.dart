@@ -52,7 +52,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyCU4gv9wQR4K7eXbV2-YKEk8X05i1JG_FY',
-    appId: '1:1039533109345:android:f59b58b2de96de29da7a20',
+    appId: '1:1039533109345:android:64b1a34a6ab1776fda7a20',
     messagingSenderId: '1039533109345',
     projectId: 'qaramia-4c405',
     storageBucket: 'qaramia-4c405.firebasestorage.app',
@@ -60,23 +60,23 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyD-koaiYWvv6msycSG4spPLBhmnPyEcl28',
-    appId: '1:1039533109345:ios:222764bfc4aed20dda7a20',
+    appId: '1:1039533109345:ios:6c8e4ac24e8f8b70da7a20',
     messagingSenderId: '1039533109345',
     projectId: 'qaramia-4c405',
     storageBucket: 'qaramia-4c405.firebasestorage.app',
     androidClientId: '1039533109345-56cr9psv855si8v8fsskg83e5sav3oq3.apps.googleusercontent.com',
-    iosClientId: '1039533109345-7hv8v7cr0s5j6b7un89lv527n6k6agmp.apps.googleusercontent.com',
+    iosClientId: '1039533109345-ppeuhg3c2oned3tk56vbrn6h0kede0k6.apps.googleusercontent.com',
     iosBundleId: 'com.qaramia.app',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyD-koaiYWvv6msycSG4spPLBhmnPyEcl28',
-    appId: '1:1039533109345:ios:222764bfc4aed20dda7a20',
+    appId: '1:1039533109345:ios:6c8e4ac24e8f8b70da7a20',
     messagingSenderId: '1039533109345',
     projectId: 'qaramia-4c405',
     storageBucket: 'qaramia-4c405.firebasestorage.app',
     androidClientId: '1039533109345-56cr9psv855si8v8fsskg83e5sav3oq3.apps.googleusercontent.com',
-    iosClientId: '1039533109345-7hv8v7cr0s5j6b7un89lv527n6k6agmp.apps.googleusercontent.com',
+    iosClientId: '1039533109345-ppeuhg3c2oned3tk56vbrn6h0kede0k6.apps.googleusercontent.com',
     iosBundleId: 'com.qaramia.app',
   );
 
@@ -89,4 +89,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'qaramia-4c405.firebasestorage.app',
     measurementId: 'G-ZQYNT2WVGQ',
   );
+
 }

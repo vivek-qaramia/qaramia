@@ -4,9 +4,11 @@ import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import '../../models/live_stream.dart';
 import '../../providers/providers.dart';
 import '../../services/cohost_service.dart';
+import '../../models/video_filter.dart';
 import '../../widgets/broadcast_scan_button.dart';
 import '../../widgets/captions_controller.dart';
 import '../../widgets/danmaku_overlay.dart';
+import '../../widgets/filter_picker.dart';
 import '../../widgets/gift_animation_overlay.dart';
 import '../../widgets/product_drawer.dart';
 import '../../widgets/room_background_selector.dart';
@@ -29,6 +31,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   bool _isStreaming = false;
   bool _roomMode = false;
   String _selectedBgId = 'modern_studio';
+  String _filterId = 'none';
   LiveStream? _activeStream;
   RtcEngine? _engine;
   final _cohostService = CoHostService();
@@ -71,6 +74,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       await _applyVirtualBackground(_selectedBgId);
     }
 
+    // Apply the chosen filter's native beauty option (color overlay is done
+    // in the widget tree). Safe to call even for Normal — Agora will disable.
+    await _applyFilterToEngine(VideoFilter.byId(_filterId));
+
     await _engine!.startPreview();
     await _engine!.joinChannel(
       token: '',
@@ -104,6 +111,33 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         greenCapacity: 0.5,
       ),
     );
+  }
+
+  /// Apply a filter's native beauty options to the Agora engine. Color-grading
+  /// (Warm/Cool/Noir/Cinema) is rendered in the widget tree via ColorFiltered.
+  Future<void> _applyFilterToEngine(VideoFilter filter) async {
+    if (_engine == null) return;
+    if (filter.hasBeauty) {
+      await _engine!.setBeautyEffectOptions(
+        enabled: true,
+        options: filter.beautyOptions!,
+      );
+    } else {
+      // Always disable explicitly — if you switch from Beauty → Warm we don't
+      // want the smoothing to persist underneath the color overlay.
+      await _engine!.setBeautyEffectOptions(
+        enabled: false,
+        options: const BeautyOptions(),
+      );
+    }
+  }
+
+  /// Called by the FilterToggleButton on the broadcast view when the host
+  /// picks a new filter mid-stream. Engine update is fire-and-forget; the
+  /// setState rebuild applies the new ColorFilter overlay immediately.
+  void _changeFilter(VideoFilter filter) {
+    setState(() => _filterId = filter.id);
+    _applyFilterToEngine(filter);
   }
 
   Future<void> _stopStream() async {
@@ -153,6 +187,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         engine: _engine!,
         roomMode: _roomMode,
         cohostService: _cohostService,
+        filterId: _filterId,
+        onFilterChange: _changeFilter,
         onInvite: _inviteCoHost,
         onEnd: _stopStream,
       );
@@ -242,6 +278,21 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 ],
               ),
             ),
+            const SizedBox(height: 20),
+
+            // Filters
+            const Padding(
+              padding: EdgeInsets.only(left: 4, bottom: 8),
+              child: Text(
+                'Filters',
+                style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+            ),
+            FilterPicker(
+              selectedId: _filterId,
+              onSelected: (f) => setState(() => _filterId = f.id),
+            ),
+
             const SizedBox(height: 32),
 
             SizedBox(
@@ -249,10 +300,14 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               height: 56,
               child: ElevatedButton.icon(
                 onPressed: _startStream,
-                icon: const Icon(Icons.videocam),
-                label: const Text('Start Streaming', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                icon: const Icon(Icons.videocam, color: Colors.white),
+                label: const Text(
+                  'Go Live',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFF7043),
+                  foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
               ),
@@ -271,6 +326,8 @@ class _BroadcastView extends ConsumerWidget {
   final RtcEngine engine;
   final bool roomMode;
   final CoHostService cohostService;
+  final String filterId;
+  final ValueChanged<VideoFilter> onFilterChange;
   final VoidCallback onInvite;
   final VoidCallback onEnd;
 
@@ -279,6 +336,8 @@ class _BroadcastView extends ConsumerWidget {
     required this.engine,
     required this.roomMode,
     required this.cohostService,
+    required this.filterId,
+    required this.onFilterChange,
     required this.onInvite,
     required this.onEnd,
   });
@@ -288,15 +347,28 @@ class _BroadcastView extends ConsumerWidget {
     final messages = ref.watch(danmakuMessagesProvider(stream.id));
     final streamAsync = ref.watch(singleStreamProvider(stream.id));
     final liveStream = streamAsync.valueOrNull ?? stream;
+    final filter = VideoFilter.byId(filterId);
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          AgoraVideoView(
-            controller: VideoViewController(rtcEngine: engine, canvas: const VideoCanvas(uid: 0)),
-          ),
+          // Camera preview, optionally wrapped in a color-grading filter.
+          // Beauty preset uses Agora's native skin smoothing (applied to the
+          // ENCODED stream so viewers see it too); color-grading presets are
+          // local-only via ColorFiltered (viewers see the unfiltered feed).
+          if (filter.hasColorOverlay)
+            ColorFiltered(
+              colorFilter: ColorFilter.matrix(filter.colorMatrix!),
+              child: AgoraVideoView(
+                controller: VideoViewController(rtcEngine: engine, canvas: const VideoCanvas(uid: 0)),
+              ),
+            )
+          else
+            AgoraVideoView(
+              controller: VideoViewController(rtcEngine: engine, canvas: const VideoCanvas(uid: 0)),
+            ),
           DanmakuOverlay(messages: messages),
           GiftAnimationOverlay(streamId: stream.id),
           Positioned(
@@ -388,6 +460,14 @@ class _BroadcastView extends ConsumerWidget {
           Positioned(
             right: 16, top: 64,
             child: CaptionsController(streamId: stream.id),
+          ),
+          // Filter picker chip (top right, stacked under the CC pill)
+          Positioned(
+            right: 16, top: 140,
+            child: FilterToggleButton(
+              currentFilterId: filterId,
+              onFilterChange: onFilterChange,
+            ),
           ),
           // Session earnings card (left side, above the chat overlay)
           Positioned(
