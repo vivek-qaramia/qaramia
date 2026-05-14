@@ -23,6 +23,14 @@
         { "fieldPath": "status",     "order": "ASCENDING" },
         { "fieldPath": "categories", "arrayConfig": "CONTAINS" }
       ]
+    },
+    {
+      "collectionGroup": "videos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "authorUid", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
