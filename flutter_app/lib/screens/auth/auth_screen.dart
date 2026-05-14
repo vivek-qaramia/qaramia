@@ -85,7 +85,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF1A0A2E), Colors.black],
+            colors: [QBrand.bg, QBrand.cardAlt],
           ),
         ),
         child: SafeArea(
@@ -109,7 +109,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   const SizedBox(height: 10),
                   const Text(
                     'MY BELOVED',
-                    style: TextStyle(color: Colors.white54, fontSize: 12, letterSpacing: 4),
+                    style: TextStyle(color: QBrand.fgMute, fontSize: 12, letterSpacing: 4),
                   ),
                   const SizedBox(height: 48),
 
@@ -127,10 +127,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                             isExpanded: true,
                             decoration: InputDecoration(
                               labelText: 'Age range (optional)',
-                              prefixIcon: const Icon(Icons.cake_outlined, color: Colors.white38),
-                              labelStyle: const TextStyle(color: Colors.white38),
+                              prefixIcon: const Icon(Icons.cake_outlined, color: QBrand.fgMute),
+                              labelStyle: const TextStyle(color: QBrand.fgMute),
                               filled: true,
-                              fillColor: Colors.white10,
+                              fillColor: QBrand.cardAlt,
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                                 borderSide: BorderSide.none,
@@ -140,8 +140,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                                 borderSide: const BorderSide(color: Color(0xFFFF7043)),
                               ),
                             ),
-                            dropdownColor: const Color(0xFF1A0A2E),
-                            style: const TextStyle(color: Colors.white),
+                            dropdownColor: QBrand.card,
+                            style: const TextStyle(color: QBrand.fg),
                             items: [
                               for (final r in _ageRanges)
                                 DropdownMenuItem(value: r, child: Text(r)),
@@ -197,7 +197,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       icon: const Text('G', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                       label: const Text('Continue with Google'),
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Colors.white24),
+                        side: const BorderSide(color: QBrand.hairline),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -213,7 +213,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       _isLogin
                           ? "Don't have an account? Sign up"
                           : 'Already have an account? Sign in',
-                      style: const TextStyle(color: Color(0xFFFFD166)),
+                      style: const TextStyle(color: QBrand.deep, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],
@@ -238,13 +238,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       obscureText: obscure,
       keyboardType: keyboardType,
       textCapitalization: capitalize,
-      style: const TextStyle(color: Colors.white),
+      style: const TextStyle(color: QBrand.fg),
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, color: Colors.white38),
-        labelStyle: const TextStyle(color: Colors.white38),
+        prefixIcon: Icon(icon, color: QBrand.fgMute),
+        labelStyle: const TextStyle(color: QBrand.fgMute),
         filled: true,
-        fillColor: Colors.white10,
+        fillColor: QBrand.cardAlt,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,

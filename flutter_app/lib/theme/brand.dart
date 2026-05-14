@@ -1,29 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Qaramia brand tokens.
+/// Qaramia brand tokens — light + bright palette.
 ///
-/// The brand is a sunrise-to-crimson arc — gold radiance giving way to
-/// devoted love. Colours flow warm only; there are no cool neutrals by design.
+/// Sunrise-to-crimson accents on warm cream surfaces. The hue family stays
+/// the same as the dark theme (gold → peach → love → crimson) so the logo
+/// and gradients remain on-brand; only the surfaces invert.
 class QBrand {
-  // ── Core palette ──────────────────────────────────────────────────────────
-  static const gold  = Color(0xFFFFD166); // accent — radiance
-  static const coral = Color(0xFFFF8A5C); // bridge tone
-  static const peach = Color(0xFFFF7043); // primary
-  static const rose  = Color(0xFFFF6B81); // inner love
-  static const love  = Color(0xFFE94560); // deeper love
-  static const deep  = Color(0xFFC9184A); // devotion
+  // ── Accent palette (unchanged from dark theme — these are the brand) ──────
+  static const gold   = Color(0xFFFFD166); // sun
+  static const coral  = Color(0xFFFF8A5C); // bridge
+  static const peach  = Color(0xFFFF7043); // primary
+  static const rose   = Color(0xFFFF6B81); // pink
+  static const love   = Color(0xFFE94560); // hot
+  static const deep   = Color(0xFFC9184A); // devotion
 
-  // ── Surfaces ──────────────────────────────────────────────────────────────
-  static const dark   = Color(0xFF14060C);
-  static const wine   = Color(0xFF1F0B14);
-  static const card   = Color(0xFF111118);
-  static const cream  = Color(0xFFFFF6EC);
+  // ── Surfaces (the change: light + warm instead of dark + moody) ───────────
+  static const bg     = Color(0xFFFFF8F0); // soft warm cream — main scaffold
+  static const card   = Color(0xFFFFFFFF); // pure white — cards
+  static const cardAlt= Color(0xFFFFEFE2); // peach-tinted cream — secondary surface
+  static const hairline = Color(0xFFEED8C8); // soft border tone
 
-  // ── Convenience text colours ──────────────────────────────────────────────
-  static const fg     = Colors.white;
-  static const fgMute = Color(0x73FFFFFF); // 45% white
-  static const fgDim  = Color(0x40FFFFFF); // 25% white
+  // ── Foreground text colours (dark on the light surfaces) ──────────────────
+  static const fg     = Color(0xFF1F0B14); // dark wine — primary text
+  static const fgMute = Color(0xFF6B4A55); // warm grey — secondary text
+  static const fgDim  = Color(0xFF9C7A85); // even softer — tertiary / labels
+
+  // ── Dark variants (used by live-stream chrome where video reads better) ──
+  static const darkSurface = Color(0xFF14060C);
+  static const wineSurface = Color(0xFF1F0B14);
+  static const cardOnDark  = Color(0xFF1A1A2E);
 
   // ── Gradients (used by mark and wordmark) ─────────────────────────────────
   static const ringGradient = LinearGradient(
@@ -74,20 +80,27 @@ class QBrand {
 
   // ── Theme ─────────────────────────────────────────────────────────────────
   static ThemeData themeData() {
-    final base = ThemeData.dark();
+    final base = ThemeData.light();
     return base.copyWith(
-      colorScheme: const ColorScheme.dark(
-        primary:   peach,
-        secondary: gold,
-        tertiary:  love,
-        surface:   card,
-        error:     deep,
+      brightness: Brightness.light,
+      colorScheme: const ColorScheme.light(
+        primary:    peach,
+        onPrimary:  Colors.white,
+        secondary:  gold,
+        onSecondary: fg,
+        tertiary:   love,
+        onTertiary: Colors.white,
+        surface:    card,
+        onSurface:  fg,
+        error:      deep,
+        onError:    Colors.white,
       ),
-      scaffoldBackgroundColor: dark,
+      scaffoldBackgroundColor: bg,
       appBarTheme: const AppBarTheme(
-        backgroundColor: dark,
+        backgroundColor: bg,
         foregroundColor: fg,
         elevation: 0,
+        surfaceTintColor: Colors.transparent,
       ),
       textTheme: textTheme(),
       iconTheme: const IconThemeData(color: fg),
@@ -96,11 +109,36 @@ class QBrand {
           backgroundColor: peach,
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: peach,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+      cardTheme: CardThemeData(
+        color: card,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: bg,
+        indicatorColor: peach.withValues(alpha: 0.15),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) => TextStyle(
+          fontSize: 12,
+          fontWeight: states.contains(WidgetState.selected) ? FontWeight.w700 : FontWeight.w500,
+          color: states.contains(WidgetState.selected) ? peach : fgMute,
+        )),
+        iconTheme: WidgetStateProperty.resolveWith((states) => IconThemeData(
+          color: states.contains(WidgetState.selected) ? peach : fgMute,
+        )),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white.withValues(alpha: 0.06),
+        fillColor: cardAlt,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
@@ -109,7 +147,14 @@ class QBrand {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: peach, width: 1.5),
         ),
+        labelStyle: const TextStyle(color: fgMute),
         hintStyle: const TextStyle(color: fgDim),
+        prefixIconColor: fgMute,
+      ),
+      dividerTheme: const DividerThemeData(color: hairline, thickness: 1),
+      snackBarTheme: const SnackBarThemeData(
+        backgroundColor: fg,
+        contentTextStyle: TextStyle(color: Colors.white),
       ),
     );
   }

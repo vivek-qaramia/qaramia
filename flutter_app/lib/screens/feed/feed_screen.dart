@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../theme/brand.dart';
 import 'package:video_player/video_player.dart';
 import '../../providers/providers.dart';
 import '../../models/video.dart';
@@ -12,16 +13,16 @@ class FeedScreen extends ConsumerWidget {
     final feedAsync = ref.watch(videoFeedProvider);
     return feedAsync.when(
       loading: () => const _FeedSkeleton(),
-      error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: Colors.white))),
+      error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: QBrand.fg))),
       data: (videos) {
         if (videos.isEmpty) {
           return const Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.videocam_off, color: Colors.white38, size: 64),
+                Icon(Icons.videocam_off, color: QBrand.fgMute, size: 64),
                 SizedBox(height: 16),
-                Text('No videos yet', style: TextStyle(color: Colors.white38, fontSize: 18)),
+                Text('No videos yet', style: TextStyle(color: QBrand.fgMute, fontSize: 18)),
               ],
             ),
           );
@@ -126,12 +127,12 @@ class _VideoCardState extends ConsumerState<VideoCard> {
             children: [
               Text(
                 '@${widget.video.authorUsername}',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                style: const TextStyle(color: QBrand.fg, fontWeight: FontWeight.bold, fontSize: 16),
               ),
               const SizedBox(height: 4),
               Text(
                 widget.video.caption,
-                style: const TextStyle(color: Colors.white70, fontSize: 14),
+                style: const TextStyle(color: QBrand.fgMute, fontSize: 14),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -139,10 +140,10 @@ class _VideoCardState extends ConsumerState<VideoCard> {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Icon(Icons.music_note, color: Colors.white70, size: 14),
+                    const Icon(Icons.music_note, color: QBrand.fgMute, size: 14),
                     const SizedBox(width: 4),
                     Text(widget.video.audioTitle!,
-                        style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                        style: const TextStyle(color: QBrand.fgMute, fontSize: 12)),
                   ],
                 ),
               ],
@@ -173,14 +174,14 @@ class _ActionColumn extends StatelessWidget {
               : null,
           backgroundColor: Colors.grey[800],
           child: video.authorAvatarUrl == null
-              ? const Icon(Icons.person, color: Colors.white)
+              ? const Icon(Icons.person, color: QBrand.fg)
               : null,
         ),
         const SizedBox(height: 20),
         _ActionBtn(
           icon: liked ? Icons.favorite : Icons.favorite_border,
           label: _fmt(video.likeCount),
-          color: liked ? const Color(0xFFFF7043) : Colors.white,
+          color: liked ? const Color(0xFFFF7043) : QBrand.fg,
           onTap: onLike,
         ),
         const SizedBox(height: 20),
@@ -216,7 +217,7 @@ class _ActionBtn extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
-    this.color = Colors.white,
+    this.color = QBrand.fg,
   });
 
   @override

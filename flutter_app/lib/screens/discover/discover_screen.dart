@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../theme/brand.dart';
 import '../../providers/providers.dart';
 import '../../models/app_user.dart';
 import '../profile/profile_screen.dart';
@@ -38,22 +39,22 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      
       appBar: AppBar(
         title: TextField(
           controller: _searchCtrl,
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: QBrand.fg),
           decoration: InputDecoration(
             hintText: 'Search users...',
-            hintStyle: const TextStyle(color: Colors.white38),
+            hintStyle: const TextStyle(color: QBrand.fgMute),
             filled: true,
-            fillColor: Colors.white10,
+            fillColor: QBrand.cardAlt,
             contentPadding: const EdgeInsets.symmetric(horizontal: 16),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(24),
               borderSide: BorderSide.none,
             ),
-            prefixIcon: const Icon(Icons.search, color: Colors.white38),
+            prefixIcon: const Icon(Icons.search, color: QBrand.fgMute),
           ),
           onChanged: _search,
         ),
@@ -64,7 +65,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
               ? _TrendingSection()
               : _results.isEmpty
                   ? const Center(
-                      child: Text('No users found', style: TextStyle(color: Colors.white54)),
+                      child: Text('No users found', style: TextStyle(color: QBrand.fgMute)),
                     )
                   : ListView.builder(
                       itemCount: _results.length,
@@ -84,11 +85,11 @@ class _UserTile extends StatelessWidget {
       leading: CircleAvatar(
         backgroundColor: Colors.grey[800],
         backgroundImage: user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
-        child: user.avatarUrl == null ? const Icon(Icons.person, color: Colors.white54) : null,
+        child: user.avatarUrl == null ? const Icon(Icons.person, color: QBrand.fgMute) : null,
       ),
-      title: Text(user.displayName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-      subtitle: Text('@${user.username}', style: const TextStyle(color: Colors.white54)),
-      trailing: Text('${user.followerCount} followers', style: const TextStyle(color: Colors.white38, fontSize: 12)),
+      title: Text(user.displayName, style: const TextStyle(color: QBrand.fg, fontWeight: FontWeight.bold)),
+      subtitle: Text('@${user.username}', style: const TextStyle(color: QBrand.fgMute)),
+      trailing: Text('${user.followerCount} followers', style: const TextStyle(color: QBrand.fgMute, fontSize: 12)),
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => ProfileScreen(uid: user.uid)),
@@ -106,10 +107,10 @@ class _TrendingSection extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Live Now', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text('Live Now', style: TextStyle(color: QBrand.fg, fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           if (liveStreams.isEmpty)
-            const Text('No live streams', style: TextStyle(color: Colors.white38))
+            const Text('No live streams', style: TextStyle(color: QBrand.fgMute))
           else
             SizedBox(
               height: 120,
@@ -130,7 +131,7 @@ class _TrendingSection extends ConsumerWidget {
                                 ? NetworkImage(stream.hostAvatarUrl!)
                                 : null,
                             child: stream.hostAvatarUrl == null
-                                ? const Icon(Icons.person, color: Colors.white54)
+                                ? const Icon(Icons.person, color: QBrand.fgMute)
                                 : null,
                           ),
                           Positioned(
@@ -144,14 +145,14 @@ class _TrendingSection extends ConsumerWidget {
                                   color: Colors.red,
                                   borderRadius: BorderRadius.circular(4),
                                 ),
-                                child: const Text('LIVE', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                                child: const Text('LIVE', style: TextStyle(color: QBrand.fg, fontSize: 9, fontWeight: FontWeight.bold)),
                               ),
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 4),
-                      Text(stream.hostUsername, style: const TextStyle(color: Colors.white, fontSize: 11)),
+                      Text(stream.hostUsername, style: const TextStyle(color: QBrand.fg, fontSize: 11)),
                     ],
                   );
                 },

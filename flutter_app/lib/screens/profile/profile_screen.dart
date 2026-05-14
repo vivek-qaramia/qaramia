@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../providers/providers.dart';
 import '../../models/app_user.dart';
 import '../../models/video.dart';
+import '../../theme/brand.dart';
 import '../studio/ads_screen.dart';
 import '../../widgets/wallet_badge.dart';
 
@@ -16,16 +17,13 @@ class ProfileScreenSelf extends ConsumerWidget {
     final userAsync = ref.watch(currentUserProvider);
     return userAsync.when(
       loading: () => const Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(child: CircularProgressIndicator(color: Color(0xFFFF7043))),
+        body: Center(child: CircularProgressIndicator(color: QBrand.peach)),
       ),
       error: (e, _) => Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(child: Text('$e', style: const TextStyle(color: Colors.white))),
+        body: Center(child: Text('$e')),
       ),
       data: (user) => user == null
           ? Scaffold(
-              backgroundColor: Colors.black,
               body: Center(
                 child: Padding(
                   padding: const EdgeInsets.all(32),
@@ -36,13 +34,13 @@ class ProfileScreenSelf extends ConsumerWidget {
                       const SizedBox(height: 16),
                       const Text(
                         'Profile not loaded',
-                        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+                        style: TextStyle(color: QBrand.fg, fontSize: 18, fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 8),
                       const Text(
                         'Something went wrong reading your account. Try retrying or signing back in.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white60, fontSize: 13),
+                        style: TextStyle(color: QBrand.fgMute, fontSize: 13),
                       ),
                       const SizedBox(height: 24),
                       FilledButton.icon(
@@ -53,9 +51,9 @@ class ProfileScreenSelf extends ConsumerWidget {
                       const SizedBox(height: 8),
                       TextButton.icon(
                         onPressed: () => ref.read(authServiceProvider).signOut(),
-                        icon: const Icon(Icons.logout, color: Colors.white54),
+                        icon: const Icon(Icons.logout, color: QBrand.fgMute),
                         label: const Text('Sign out',
-                            style: TextStyle(color: Colors.white54)),
+                            style: TextStyle(color: QBrand.fgMute)),
                       ),
                     ],
                   ),
@@ -79,18 +77,17 @@ class ProfileScreen extends ConsumerWidget {
     final isSelf = currentUser?.uid == uid;
 
     return Scaffold(
-      backgroundColor: Colors.black,
       body: profileAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('$e', style: const TextStyle(color: Colors.white))),
+        loading: () => const Center(child: CircularProgressIndicator(color: QBrand.peach)),
+        error: (e, _) => Center(child: Text('$e')),
         data: (user) {
-          if (user == null) return const Center(child: Text('User not found', style: TextStyle(color: Colors.white)));
+          if (user == null) return const Center(child: Text('User not found'));
           return CustomScrollView(
             slivers: [
               SliverAppBar(
-                backgroundColor: Colors.black,
                 pinned: true,
-                title: Text('@${user.username}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                title: Text('@${user.username}',
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
                 actions: [
                   if (isSelf) ...[
                     const Padding(
@@ -116,7 +113,7 @@ class ProfileScreen extends ConsumerWidget {
               ),
               videosAsync.when(
                 loading: () => const SliverToBoxAdapter(
-                  child: Center(child: CircularProgressIndicator()),
+                  child: Center(child: CircularProgressIndicator(color: QBrand.peach)),
                 ),
                 error: (e, _) => SliverToBoxAdapter(child: Text('$e')),
                 data: (videos) => _VideoGrid(videos: videos),
@@ -149,15 +146,20 @@ class _ProfileHeader extends ConsumerWidget {
           // Avatar
           CircleAvatar(
             radius: 48,
-            backgroundColor: Colors.grey[800],
+            backgroundColor: QBrand.cardAlt,
             backgroundImage: user.avatarUrl != null ? CachedNetworkImageProvider(user.avatarUrl!) : null,
-            child: user.avatarUrl == null ? const Icon(Icons.person, size: 48, color: Colors.white54) : null,
+            child: user.avatarUrl == null
+                ? const Icon(Icons.person, size: 48, color: QBrand.fgMute)
+                : null,
           ),
           const SizedBox(height: 12),
-          Text(user.displayName, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+          Text(user.displayName,
+              style: const TextStyle(color: QBrand.fg, fontSize: 20, fontWeight: FontWeight.bold)),
           if (user.bio != null) ...[
             const SizedBox(height: 8),
-            Text(user.bio!, style: const TextStyle(color: Colors.white60, fontSize: 14), textAlign: TextAlign.center),
+            Text(user.bio!,
+                style: const TextStyle(color: QBrand.fgMute, fontSize: 14),
+                textAlign: TextAlign.center),
           ],
           const SizedBox(height: 20),
 
@@ -191,7 +193,8 @@ class _ProfileHeader extends ConsumerWidget {
                     ref.invalidate(userProfileProvider);
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: isFollowing ? Colors.white10 : const Color(0xFFFF7043),
+                    backgroundColor: isFollowing ? QBrand.cardAlt : QBrand.peach,
+                    foregroundColor: isFollowing ? QBrand.fg : Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   child: Text(isFollowing ? 'Following' : 'Follow',
@@ -219,8 +222,9 @@ class _Stat extends StatelessWidget {
             : '$value';
     return Column(
       children: [
-        Text(display, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-        Text(label, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+        Text(display,
+            style: const TextStyle(color: QBrand.fg, fontSize: 20, fontWeight: FontWeight.bold)),
+        Text(label, style: const TextStyle(color: QBrand.fgMute, fontSize: 12)),
       ],
     );
   }
@@ -237,7 +241,7 @@ class _VideoGrid extends StatelessWidget {
         child: Center(
           child: Padding(
             padding: EdgeInsets.all(40),
-            child: Text('No videos yet', style: TextStyle(color: Colors.white38)),
+            child: Text('No videos yet', style: TextStyle(color: QBrand.fgDim)),
           ),
         ),
       );
@@ -251,8 +255,8 @@ class _VideoGrid extends StatelessWidget {
             child: video.thumbnailUrl != null
                 ? CachedNetworkImage(imageUrl: video.thumbnailUrl!, fit: BoxFit.cover)
                 : Container(
-                    color: Colors.grey[900],
-                    child: const Icon(Icons.videocam, color: Colors.white24),
+                    color: QBrand.cardAlt,
+                    child: const Icon(Icons.videocam, color: QBrand.fgDim),
                   ),
           );
         },

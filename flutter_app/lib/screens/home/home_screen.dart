@@ -25,11 +25,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
       body: IndexedStack(index: _tab, children: _tabs),
       bottomNavigationBar: NavigationBar(
-        backgroundColor: Colors.black,
-        indicatorColor: Colors.transparent,
+        indicatorColor: const Color(0x33FF7043),
         selectedIndex: _tab,
         onDestinationSelected: (i) => setState(() => _tab = i),
         destinations: const [

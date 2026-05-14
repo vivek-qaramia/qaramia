@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../theme/brand.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../providers/providers.dart';
 import '../../models/live_stream.dart';
@@ -13,7 +14,7 @@ class LiveDiscoveryScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final streamsAsync = ref.watch(liveStreamsProvider);
     return Scaffold(
-      backgroundColor: Colors.black,
+      
       appBar: AppBar(
         title: const Text('Live', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
@@ -29,18 +30,18 @@ class LiveDiscoveryScreen extends ConsumerWidget {
       ),
       body: streamsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: Colors.white))),
+        error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: QBrand.fg))),
         data: (streams) {
           if (streams.isEmpty) {
             return const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.live_tv, color: Colors.white24, size: 80),
+                  Icon(Icons.live_tv, color: QBrand.hairline, size: 80),
                   SizedBox(height: 16),
-                  Text('No live streams right now', style: TextStyle(color: Colors.white54, fontSize: 18)),
+                  Text('No live streams right now', style: TextStyle(color: QBrand.fgMute, fontSize: 18)),
                   SizedBox(height: 8),
-                  Text('Be the first to go live!', style: TextStyle(color: Colors.white38)),
+                  Text('Be the first to go live!', style: TextStyle(color: QBrand.fgMute)),
                 ],
               ),
             );
@@ -96,7 +97,7 @@ class _StreamCard extends StatelessWidget {
                 child: Center(
                   child: Text(
                     stream.hostUsername[0].toUpperCase(),
-                    style: const TextStyle(fontSize: 48, color: Colors.white38),
+                    style: const TextStyle(fontSize: 48, color: QBrand.fgMute),
                   ),
                 ),
               ),
@@ -122,7 +123,7 @@ class _StreamCard extends StatelessWidget {
                   color: const Color(0xFFFF7043),
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: const Text('LIVE', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                child: const Text('LIVE', style: TextStyle(color: QBrand.fg, fontSize: 11, fontWeight: FontWeight.bold)),
               ),
             ),
 
@@ -139,10 +140,10 @@ class _StreamCard extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.remove_red_eye_outlined, color: Colors.white, size: 12),
+                    const Icon(Icons.remove_red_eye_outlined, color: QBrand.fg, size: 12),
                     const SizedBox(width: 4),
                     Text(_fmt(stream.viewerCount),
-                        style: const TextStyle(color: Colors.white, fontSize: 11)),
+                        style: const TextStyle(color: QBrand.fg, fontSize: 11)),
                   ],
                 ),
               ),
@@ -157,10 +158,10 @@ class _StreamCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('@${stream.hostUsername}',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                      style: const TextStyle(color: QBrand.fg, fontWeight: FontWeight.bold, fontSize: 12)),
                   const SizedBox(height: 2),
                   Text(stream.title,
-                      style: const TextStyle(color: Colors.white70, fontSize: 11),
+                      style: const TextStyle(color: QBrand.fgMute, fontSize: 11),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis),
                 ],
