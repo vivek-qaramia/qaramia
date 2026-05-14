@@ -39,7 +39,36 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    await _auth.signInWithEmailAndPassword(email: email, password: password);
+    final cred = await _auth.signInWithEmailAndPassword(email: email, password: password);
+    // Self-heal: if the user doc is missing (e.g. signup happened before rules
+    // were deployed, or doc was deleted), back-fill a minimal user doc so the
+    // rest of the app's UID-keyed reads work.
+    await _ensureUserDoc(
+      uid: cred.user!.uid,
+      email: email,
+      fallbackUsername: email.split('@').first.toLowerCase(),
+      fallbackDisplayName: email.split('@').first,
+    );
+  }
+
+  Future<void> _ensureUserDoc({
+    required String uid,
+    required String email,
+    required String fallbackUsername,
+    required String fallbackDisplayName,
+    String? avatarUrl,
+  }) async {
+    final ref = _db.collection('users').doc(uid);
+    final doc = await ref.get();
+    if (doc.exists) return;
+    final user = AppUser(
+      uid: uid,
+      username: fallbackUsername,
+      displayName: fallbackDisplayName,
+      avatarUrl: avatarUrl,
+      createdAt: DateTime.now(),
+    );
+    await ref.set(user.toJson());
   }
 
   Future<AppUser> signInWithGoogle() async {
