@@ -15,10 +15,53 @@ class ProfileScreenSelf extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final userAsync = ref.watch(currentUserProvider);
     return userAsync.when(
-      loading: () => const Scaffold(backgroundColor: Colors.black, body: Center(child: CircularProgressIndicator())),
-      error: (e, _) => Scaffold(backgroundColor: Colors.black, body: Center(child: Text('$e', style: const TextStyle(color: Colors.white)))),
+      loading: () => const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(child: CircularProgressIndicator(color: Color(0xFFFF7043))),
+      ),
+      error: (e, _) => Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(child: Text('$e', style: const TextStyle(color: Colors.white))),
+      ),
       data: (user) => user == null
-          ? const Scaffold(backgroundColor: Colors.black)
+          ? Scaffold(
+              backgroundColor: Colors.black,
+              body: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('👤', style: TextStyle(fontSize: 56)),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Profile not loaded',
+                        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Something went wrong reading your account. Try retrying or signing back in.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.white60, fontSize: 13),
+                      ),
+                      const SizedBox(height: 24),
+                      FilledButton.icon(
+                        onPressed: () => ref.invalidate(currentUserProvider),
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Retry'),
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton.icon(
+                        onPressed: () => ref.read(authServiceProvider).signOut(),
+                        icon: const Icon(Icons.logout, color: Colors.white54),
+                        label: const Text('Sign out',
+                            style: TextStyle(color: Colors.white54)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )
           : ProfileScreen(uid: user.uid),
     );
   }

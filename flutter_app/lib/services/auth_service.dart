@@ -103,9 +103,34 @@ class AuthService {
     await Future.wait([_auth.signOut(), _googleSignIn.signOut()]);
   }
 
+  /// Load the AppUser doc. If the doc is missing but the caller is the
+  /// currently-authenticated user, back-fill a minimal doc from FirebaseAuth
+  /// metadata. This rescues accounts created before Firestore rules were
+  /// deployed and prevents downstream screens from rendering a blank state.
   Future<AppUser?> getUser(String uid) async {
     final doc = await _db.collection('users').doc(uid).get();
-    if (!doc.exists) return null;
-    return AppUser.fromJson(doc.data()!);
+    if (doc.exists) return AppUser.fromJson(doc.data()!);
+
+    final authUser = _auth.currentUser;
+    if (authUser == null || authUser.uid != uid) return null;
+
+    final email = authUser.email ?? '';
+    final localPart = email.contains('@') ? email.split('@').first : '';
+    final username = localPart.isNotEmpty
+        ? localPart.toLowerCase()
+        : 'user_${uid.substring(0, 6)}';
+    final user = AppUser(
+      uid: uid,
+      username: username,
+      displayName: authUser.displayName ?? username,
+      avatarUrl: authUser.photoURL,
+      createdAt: DateTime.now(),
+    );
+    try {
+      await _db.collection('users').doc(uid).set(user.toJson());
+      return user;
+    } catch (_) {
+      return null;
+    }
   }
 }
