@@ -17,7 +17,7 @@ class ProfileScreenSelf extends ConsumerWidget {
     final userAsync = ref.watch(currentUserProvider);
     return userAsync.when(
       loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: QBrand.peach)),
+        body: Center(child: CircularProgressIndicator(color: QBrand.primary)),
       ),
       error: (e, _) => Scaffold(
         body: Center(child: Text('$e')),
@@ -78,7 +78,7 @@ class ProfileScreen extends ConsumerWidget {
 
     return Scaffold(
       body: profileAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator(color: QBrand.peach)),
+        loading: () => const Center(child: CircularProgressIndicator(color: QBrand.primary)),
         error: (e, _) => Center(child: Text('$e')),
         data: (user) {
           if (user == null) return const Center(child: Text('User not found'));
@@ -113,7 +113,7 @@ class ProfileScreen extends ConsumerWidget {
               ),
               videosAsync.when(
                 loading: () => const SliverToBoxAdapter(
-                  child: Center(child: CircularProgressIndicator(color: QBrand.peach)),
+                  child: Center(child: CircularProgressIndicator(color: QBrand.primary)),
                 ),
                 error: (e, _) => SliverToBoxAdapter(child: Text('$e')),
                 data: (videos) => _VideoGrid(videos: videos),
@@ -193,7 +193,7 @@ class _ProfileHeader extends ConsumerWidget {
                     ref.invalidate(userProfileProvider);
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: isFollowing ? QBrand.cardAlt : QBrand.peach,
+                    backgroundColor: isFollowing ? QBrand.cardAlt : QBrand.primary,
                     foregroundColor: isFollowing ? QBrand.fg : Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),

@@ -47,12 +47,12 @@ class SessionEarningsCard extends ConsumerWidget {
           Row(
             children: [
               const Text('Est. \$',
-                  style: TextStyle(color: QBrand.fgMute, fontSize: 10, fontWeight: FontWeight.w600)),
+                  style: TextStyle(color: Colors.white60, fontSize: 10, fontWeight: FontWeight.w600)),
               const SizedBox(width: 6),
               Text(
                 stats.estimatedEarningsUsd.toStringAsFixed(2),
                 style: const TextStyle(
-                  color: QBrand.peach, fontSize: 14, fontWeight: FontWeight.w900,
+                  color: QBrand.primary, fontSize: 14, fontWeight: FontWeight.w900,
                 ),
               ),
             ],
@@ -84,7 +84,7 @@ class _StatRow extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             suffix,
-            style: const TextStyle(color: QBrand.fgMute, fontSize: 10),
+            style: const TextStyle(color: Colors.white60, fontSize: 10),
           ),
         ],
       ),

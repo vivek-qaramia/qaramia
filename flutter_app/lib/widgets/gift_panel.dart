@@ -75,7 +75,7 @@ class GiftPanel extends ConsumerWidget {
                 children: [
                   const Expanded(
                     child: Text('Send a Gift',
-                        style: TextStyle(color: QBrand.fg, fontWeight: FontWeight.w700, fontSize: 15)),
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -89,7 +89,7 @@ class GiftPanel extends ConsumerWidget {
                         const Text('🪙', style: TextStyle(fontSize: 12)),
                         const SizedBox(width: 4),
                         Text('$coins',
-                            style: const TextStyle(color: QBrand.fg, fontSize: 12, fontWeight: FontWeight.w700)),
+                            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
                       ],
                     ),
                   ),
@@ -138,8 +138,8 @@ class _TierSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tierColor = switch (tier) {
-      GiftTier.standard => QBrand.fgMute,
-      GiftTier.premium => QBrand.peach,
+      GiftTier.standard => Colors.white70,
+      GiftTier.premium => QBrand.primary,
       GiftTier.whale => QBrand.love,
     };
     return Padding(
@@ -275,7 +275,7 @@ class _GiftTile extends StatelessWidget {
               Text(gift.emoji, style: const TextStyle(fontSize: 26)),
               const SizedBox(height: 2),
               Text(gift.name,
-                  style: const TextStyle(color: QBrand.fg, fontSize: 9, fontWeight: FontWeight.w600),
+                  style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w600),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
               const SizedBox(height: 2),
               if (showFree)
@@ -293,7 +293,7 @@ class _GiftTile extends StatelessWidget {
                       const SizedBox(width: 3),
                       Text('${gift.coinCost}',
                           style: const TextStyle(
-                            color: QBrand.fgDim,
+                            color: Colors.white54,
                             fontSize: 8,
                             fontWeight: FontWeight.w600,
                             decoration: TextDecoration.lineThrough,
@@ -301,7 +301,7 @@ class _GiftTile extends StatelessWidget {
                     ] else
                       Text('$effectivePrice',
                           style: TextStyle(
-                            color: canAfford ? QBrand.gold : QBrand.fgMute,
+                            color: canAfford ? QBrand.gold : Colors.white70,
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
                           )),

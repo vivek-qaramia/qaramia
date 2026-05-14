@@ -5,6 +5,7 @@ import '../../models/live_stream.dart';
 import '../../providers/providers.dart';
 import '../../services/cohost_service.dart';
 import '../../models/video_filter.dart';
+import '../../theme/brand.dart';
 import '../../widgets/broadcast_scan_button.dart';
 import '../../widgets/captions_controller.dart';
 import '../../widgets/danmaku_overlay.dart';
@@ -222,28 +223,28 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.black,
       appBar: AppBar(title: const Text('Go Live')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Stream Title', style: TextStyle(color: Colors.white54, fontSize: 12)),
+            const Text('Stream Title', style: TextStyle(color: QBrand.fgMute, fontSize: 12)),
             const SizedBox(height: 8),
             TextField(
               controller: _titleCtrl,
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: QBrand.fg),
               decoration: InputDecoration(
                 hintText: "What's your stream about?",
-                hintStyle: const TextStyle(color: Colors.white38),
+                hintStyle: const TextStyle(color: QBrand.fgDim),
                 filled: true,
-                fillColor: Colors.white10,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                fillColor: QBrand.cardAlt,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(999), borderSide: BorderSide.none),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               ),
             ),
             const SizedBox(height: 24),
-            const Text('Category', style: TextStyle(color: Colors.white54, fontSize: 12)),
+            const Text('Category', style: TextStyle(color: QBrand.fgMute, fontSize: 12)),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8, runSpacing: 8,
@@ -254,10 +255,14 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: sel ? const Color(0xFFFF7043) : Colors.white10,
-                      borderRadius: BorderRadius.circular(20),
+                      color: sel ? QBrand.primary : QBrand.cardAlt,
+                      borderRadius: BorderRadius.circular(999),
                     ),
-                    child: Text(cat, style: TextStyle(color: sel ? Colors.white : Colors.white70)),
+                    child: Text(cat,
+                        style: TextStyle(
+                          color: sel ? Colors.white : QBrand.fg,
+                          fontWeight: FontWeight.w600,
+                        )),
                   ),
                 );
               }).toList(),
@@ -268,9 +273,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: _roomMode ? const Color(0xFF1A0A2E) : Colors.white10,
+                color: _roomMode ? QBrand.primaryDim : QBrand.cardAlt,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: _roomMode ? const Color(0xFFFF7043) : Colors.transparent),
+                border: Border.all(color: _roomMode ? QBrand.primary : QBrand.hairline),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -281,17 +286,18 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('🏠 Room Mode', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            Text('🏠 Room Mode',
+                                style: TextStyle(color: QBrand.fg, fontWeight: FontWeight.bold)),
                             SizedBox(height: 2),
                             Text('Co-hosts appear in the same virtual space',
-                                style: TextStyle(color: Colors.white54, fontSize: 12)),
+                                style: TextStyle(color: QBrand.fgMute, fontSize: 12)),
                           ],
                         ),
                       ),
                       Switch(
                         value: _roomMode,
                         onChanged: (v) => setState(() => _roomMode = v),
-                        activeThumbColor: const Color(0xFFFF7043),
+                        activeThumbColor: QBrand.primary,
                       ),
                     ],
                   ),
@@ -312,7 +318,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               padding: EdgeInsets.only(left: 4, bottom: 8),
               child: Text(
                 'Filters',
-                style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w600),
+                style: TextStyle(color: QBrand.fgMute, fontSize: 12, fontWeight: FontWeight.w600),
               ),
             ),
             FilterPicker(
@@ -325,17 +331,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             SizedBox(
               width: double.infinity,
               height: 56,
-              child: ElevatedButton.icon(
+              child: FilledButton.icon(
                 onPressed: _startStream,
-                icon: const Icon(Icons.videocam, color: Colors.white),
+                icon: const Icon(Icons.videocam),
                 label: const Text(
                   'Go Live',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF7043),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                 ),
               ),
             ),
@@ -406,12 +407,12 @@ class _BroadcastView extends ConsumerWidget {
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(4)),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(color: QBrand.love, borderRadius: BorderRadius.circular(999)),
                       child: const Row(children: [
                         Icon(Icons.circle, color: Colors.white, size: 8),
                         SizedBox(width: 4),
-                        Text('LIVE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        Text('LIVE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 11)),
                       ]),
                     ),
                     const SizedBox(width: 8),
@@ -423,9 +424,9 @@ class _BroadcastView extends ConsumerWidget {
                     if (roomMode) ...[
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(color: Colors.purple, borderRadius: BorderRadius.circular(4)),
-                        child: const Text('🏠 ROOM', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(color: QBrand.primary, borderRadius: BorderRadius.circular(999)),
+                        child: const Text('🏠 ROOM', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
                       ),
                     ],
                     const Spacer(),
@@ -433,15 +434,16 @@ class _BroadcastView extends ConsumerWidget {
                     GestureDetector(
                       onTap: onInvite,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: Colors.white12,
-                          borderRadius: BorderRadius.circular(8),
+                          color: Colors.black.withValues(alpha: 0.45),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: Colors.white24),
                         ),
                         child: const Row(children: [
                           Icon(Icons.person_add, color: Colors.white, size: 14),
                           SizedBox(width: 4),
-                          Text('Invite', style: TextStyle(color: Colors.white, fontSize: 12)),
+                          Text('Invite', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
                         ]),
                       ),
                     ),
@@ -449,9 +451,9 @@ class _BroadcastView extends ConsumerWidget {
                     GestureDetector(
                       onTap: onEnd,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(8)),
-                        child: const Text('End', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        decoration: BoxDecoration(color: QBrand.love, borderRadius: BorderRadius.circular(999)),
+                        child: const Text('End', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
                       ),
                     ),
                   ],
@@ -596,7 +598,7 @@ class _CoHostInviteSheetState extends ConsumerState<_CoHostInviteSheet> {
                 );
                 if (context.mounted) Navigator.pop(context);
               },
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF7043)),
+              style: ElevatedButton.styleFrom(backgroundColor: QBrand.primary),
               child: const Text('Invite'),
             ),
           )),

@@ -137,7 +137,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0xFFFF7043)),
+                                borderSide: const BorderSide(color: Color(0xFF3830CC)),
                               ),
                             ),
                             dropdownColor: QBrand.card,
@@ -169,7 +169,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     child: ElevatedButton(
                       onPressed: _loading ? null : _submit,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFF7043),
+                        backgroundColor: const Color(0xFF3830CC),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -213,7 +213,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       _isLogin
                           ? "Don't have an account? Sign up"
                           : 'Already have an account? Sign in',
-                      style: const TextStyle(color: QBrand.deep, fontWeight: FontWeight.w600),
+                      style: const TextStyle(color: QBrand.primary, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],
@@ -251,7 +251,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFFF7043)),
+          borderSide: const BorderSide(color: Color(0xFF3830CC)),
         ),
       ),
     );

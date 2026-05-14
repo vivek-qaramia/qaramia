@@ -173,11 +173,11 @@ class _CaptionsControllerState extends ConsumerState<CaptionsController> {
               color: !_supported
                   ? Colors.white.withValues(alpha: 0.05)
                   : _enabled
-                      ? QBrand.peach.withValues(alpha: 0.8)
+                      ? QBrand.primary.withValues(alpha: 0.8)
                       : Colors.black.withValues(alpha: 0.55),
               borderRadius: BorderRadius.circular(100),
               border: Border.all(
-                color: _enabled ? QBrand.peach : Colors.white24,
+                color: _enabled ? QBrand.primary : Colors.white24,
               ),
             ),
             child: Row(

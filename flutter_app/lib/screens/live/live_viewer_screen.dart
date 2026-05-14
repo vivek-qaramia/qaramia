@@ -9,6 +9,7 @@ import '../../providers/providers.dart';
 import '../../providers/sponsorship_providers.dart';
 import '../../services/cohost_service.dart';
 import '../../services/stream_service.dart' show InsufficientCoinsException;
+import '../../theme/brand.dart';
 import '../../widgets/caption_overlay.dart';
 import '../../widgets/danmaku_overlay.dart';
 import '../../widgets/gift_animation_overlay.dart';
@@ -280,7 +281,7 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
                   margin: const EdgeInsets.all(12),
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFF7043),
+                    color: const Color(0xFF3830CC),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Row(
@@ -294,7 +295,7 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
                       TextButton(
                         onPressed: _acceptInvite,
                         style: TextButton.styleFrom(backgroundColor: Colors.white),
-                        child: const Text('Join', style: TextStyle(color: Color(0xFFFF7043), fontWeight: FontWeight.bold)),
+                        child: const Text('Join', style: TextStyle(color: Color(0xFF3830CC), fontWeight: FontWeight.bold)),
                       ),
                       const SizedBox(width: 8),
                       TextButton(
@@ -307,57 +308,20 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
               ),
             ),
 
-          // Top bar
+          // Top bar — template-aligned: avatar w/ Live tag + name + Follow + viewers + close
           Positioned(
             top: 0,
             left: 0,
             right: 0,
             child: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 18,
-                      backgroundImage: widget.stream.hostAvatarUrl != null
-                          ? NetworkImage(widget.stream.hostAvatarUrl!)
-                          : null,
-                      backgroundColor: Colors.grey[800],
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('@${widget.stream.hostUsername}',
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-                          Text(widget.stream.title,
-                              style: const TextStyle(color: Colors.white54, fontSize: 11),
-                              maxLines: 1, overflow: TextOverflow.ellipsis),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.remove_red_eye_outlined, color: Colors.white, size: 12),
-                          const SizedBox(width: 4),
-                          Text('${liveStream.viewerCount}',
-                              style: const TextStyle(color: Colors.white, fontSize: 12)),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: const Icon(Icons.close, color: Colors.white),
-                    ),
-                  ],
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                child: _TopBar(
+                  hostUid: widget.stream.hostUid,
+                  hostUsername: widget.stream.hostUsername,
+                  hostAvatarUrl: widget.stream.hostAvatarUrl,
+                  viewerCount: liveStream.viewerCount,
+                  onClose: () => Navigator.pop(context),
                 ),
               ),
             ),
@@ -372,9 +336,9 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Recent messages list
-                _ChatList(messages: messages.take(6).toList()),
+                _ChatList(messages: messages.take(6).toList(), hostUid: widget.stream.hostUid),
 
-                // Input row
+                // Bottom action row — template-aligned
                 Padding(
                   padding: EdgeInsets.only(
                     left: 12,
@@ -389,23 +353,45 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
                           controller: _chatCtrl,
                           style: const TextStyle(color: Colors.white, fontSize: 14),
                           decoration: InputDecoration(
-                            hintText: 'Say something...',
-                            hintStyle: const TextStyle(color: Colors.white38),
+                            hintText: 'What do you think...',
+                            hintStyle: const TextStyle(color: Colors.white54),
                             filled: true,
-                            fillColor: Colors.white12,
+                            fillColor: Colors.white.withValues(alpha: 0.10),
                             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(24),
+                              borderRadius: BorderRadius.circular(999),
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(999),
+                              borderSide: BorderSide.none,
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(999),
                               borderSide: BorderSide.none,
                             ),
                           ),
                           onSubmitted: (_) => _sendChat(),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       IconButton(
                         onPressed: () => setState(() => _showGiftPanel = !_showGiftPanel),
-                        icon: const Text('🎁', style: TextStyle(fontSize: 24)),
+                        icon: const Text('🎁', style: TextStyle(fontSize: 22)),
+                        padding: const EdgeInsets.all(8),
+                        constraints: const BoxConstraints(),
+                      ),
+                      IconButton(
+                        onPressed: () {},
+                        icon: const Icon(Icons.ios_share, color: Colors.white, size: 22),
+                        padding: const EdgeInsets.all(8),
+                        constraints: const BoxConstraints(),
+                      ),
+                      IconButton(
+                        onPressed: () {},
+                        icon: const Icon(Icons.favorite, color: Colors.white, size: 22),
+                        padding: const EdgeInsets.all(8),
+                        constraints: const BoxConstraints(),
                       ),
                     ],
                   ),
@@ -433,42 +419,237 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
 
 class _ChatList extends StatelessWidget {
   final List<ChatMessage> messages;
-  const _ChatList({required this.messages});
+  final String hostUid;
+  const _ChatList({required this.messages, required this.hostUid});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: messages.reversed.map((m) => _ChatBubble(message: m)).toList(),
+      children: messages.reversed
+          .map((m) => _ChatBubble(message: m, isHost: m.authorUid == hostUid))
+          .toList(),
     );
   }
 }
 
 class _ChatBubble extends StatelessWidget {
   final ChatMessage message;
-  const _ChatBubble({required this.message});
+  final bool isHost;
+  const _ChatBubble({required this.message, required this.isHost});
 
   @override
   Widget build(BuildContext context) {
     final isGift = message.type == 'gift';
     final isJoin = message.type == 'join';
+    final textColor = isGift
+        ? const Color(0xFFFFD700)
+        : isJoin
+            ? const Color(0xFFFFD166)
+            : Colors.white;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      child: RichText(
-        text: TextSpan(
-          style: TextStyle(
-            fontSize: 13,
-            color: isGift ? const Color(0xFFFFD700) : isJoin ? const Color(0xFFFFD166) : Colors.white,
-          ),
-          children: [
-            TextSpan(
-              text: '${message.authorUsername} ',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 11,
+            backgroundColor: _avatarColor(message.authorUsername),
+            child: Text(
+              _initial(message.authorUsername),
+              style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
             ),
-            TextSpan(text: message.text),
-          ],
-        ),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isHost) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: QBrand.seller,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: const Text('Seller',
+                            style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    Flexible(
+                      child: Text(
+                        message.authorUsername,
+                        style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w600),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  message.text,
+                  style: TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.w500),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
+
+  static String _initial(String s) => s.isEmpty ? '?' : s.substring(0, 1).toUpperCase();
+
+  static Color _avatarColor(String s) {
+    const palette = [QBrand.primary, QBrand.love, QBrand.seller, QBrand.gold, QBrand.deep];
+    return palette[s.hashCode.abs() % palette.length];
+  }
 }
+
+/// Top bar: avatar + "Live" tag + name + +Follow pill + viewers + close.
+class _TopBar extends ConsumerStatefulWidget {
+  final String hostUid;
+  final String hostUsername;
+  final String? hostAvatarUrl;
+  final int viewerCount;
+  final VoidCallback onClose;
+  const _TopBar({
+    required this.hostUid,
+    required this.hostUsername,
+    required this.hostAvatarUrl,
+    required this.viewerCount,
+    required this.onClose,
+  });
+
+  @override
+  ConsumerState<_TopBar> createState() => _TopBarState();
+}
+
+class _TopBarState extends ConsumerState<_TopBar> {
+  bool _toggling = false;
+
+  Future<void> _toggleFollow(bool currentlyFollowing) async {
+    final me = ref.read(authStateProvider).valueOrNull?.uid;
+    if (me == null || me == widget.hostUid || _toggling) return;
+    setState(() => _toggling = true);
+    final svc = ref.read(userServiceProvider);
+    try {
+      if (currentlyFollowing) {
+        await svc.unfollowUser(me, widget.hostUid);
+      } else {
+        await svc.followUser(me, widget.hostUid);
+      }
+      ref.invalidate(isFollowingProvider);
+    } catch (_) {}
+    if (mounted) setState(() => _toggling = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final myUid = ref.watch(authStateProvider).valueOrNull?.uid;
+    final isSelf = myUid != null && myUid == widget.hostUid;
+    final followingAsync = (myUid != null && !isSelf)
+        ? ref.watch(isFollowingProvider((currentUid: myUid, targetUid: widget.hostUid)))
+        : null;
+    final isFollowing = followingAsync?.valueOrNull ?? false;
+
+    // Pill content: dark glass bg with avatar + name + Follow inside, plus
+    // a tiny red "Live" tag overlapping the avatar's bottom.
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.fromLTRB(4, 4, 12, 4),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.45),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.center,
+                children: [
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: Colors.grey[800],
+                    backgroundImage: widget.hostAvatarUrl != null
+                        ? NetworkImage(widget.hostAvatarUrl!)
+                        : null,
+                  ),
+                  Positioned(
+                    bottom: -6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: QBrand.love,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: const Text('Live',
+                          style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w800)),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 10),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.hostUsername,
+                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700),
+                  ),
+                  Row(
+                    children: [
+                      const Icon(Icons.remove_red_eye_outlined, color: Colors.white70, size: 11),
+                      const SizedBox(width: 3),
+                      Text('${widget.viewerCount} Viewers',
+                          style: const TextStyle(color: Colors.white70, fontSize: 10)),
+                    ],
+                  ),
+                ],
+              ),
+              if (!isSelf) ...[
+                const SizedBox(width: 10),
+                GestureDetector(
+                  onTap: _toggling ? null : () => _toggleFollow(isFollowing),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isFollowing ? Colors.white.withValues(alpha: 0.15) : QBrand.primary,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      isFollowing ? 'Following' : '+ Follow',
+                      style: const TextStyle(
+                          color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const Spacer(),
+        GestureDetector(
+          onTap: widget.onClose,
+          child: Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.45),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.close, color: Colors.white, size: 18),
+          ),
+        ),
+      ],
+    );
+  }
+}
+

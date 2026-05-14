@@ -106,9 +106,9 @@ class _CoinPackPickerState extends ConsumerState<CoinPackPicker> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: QBrand.peach.withValues(alpha: 0.1),
+              color: QBrand.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: QBrand.peach.withValues(alpha: 0.4)),
+              border: Border.all(color: QBrand.primary.withValues(alpha: 0.4)),
             ),
             child: Text(_statusMessage!,
                 style: const TextStyle(color: QBrand.fg, fontSize: 12)),
@@ -164,14 +164,14 @@ class _PackTile extends StatelessWidget {
           decoration: BoxDecoration(
             color: QBrand.card,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white12),
+            border: Border.all(color: QBrand.hairline),
           ),
           child: Row(
             children: [
               Container(
                 width: 44, height: 44,
                 decoration: BoxDecoration(
-                  color: QBrand.peach.withValues(alpha: 0.2),
+                  color: QBrand.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 alignment: Alignment.center,
@@ -212,11 +212,11 @@ class _PackTile extends StatelessWidget {
               ),
               if (pending)
                 const SizedBox(width: 22, height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: QBrand.peach))
+                    child: CircularProgressIndicator(strokeWidth: 2, color: QBrand.primary))
               else
                 Text(displayPrice,
                     style: const TextStyle(
-                      color: QBrand.peach, fontSize: 16, fontWeight: FontWeight.w800,
+                      color: QBrand.primary, fontSize: 16, fontWeight: FontWeight.w800,
                     )),
             ],
           ),

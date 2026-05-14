@@ -23,8 +23,8 @@ class LiveDiscoveryScreen extends ConsumerWidget {
               context,
               MaterialPageRoute(builder: (_) => const GoLiveScreen()),
             ),
-            icon: const Icon(Icons.videocam, color: Color(0xFFFF7043)),
-            label: const Text('Go Live', style: TextStyle(color: Color(0xFFFF7043), fontWeight: FontWeight.bold)),
+            icon: const Icon(Icons.videocam, color: Color(0xFF3830CC)),
+            label: const Text('Go Live', style: TextStyle(color: Color(0xFF3830CC), fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -87,9 +87,9 @@ class _StreamCard extends StatelessWidget {
               )
             else
               Container(
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Colors.purple[900]!, Colors.indigo[900]!],
+                    colors: [QBrand.primaryDeep, QBrand.primary],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -97,7 +97,7 @@ class _StreamCard extends StatelessWidget {
                 child: Center(
                   child: Text(
                     stream.hostUsername[0].toUpperCase(),
-                    style: const TextStyle(fontSize: 48, color: QBrand.fgMute),
+                    style: const TextStyle(fontSize: 48, color: Colors.white, fontWeight: FontWeight.w800),
                   ),
                 ),
               ),
@@ -118,12 +118,12 @@ class _StreamCard extends StatelessWidget {
               top: 8,
               left: 8,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFF7043),
-                  borderRadius: BorderRadius.circular(4),
+                  color: QBrand.love,
+                  borderRadius: BorderRadius.circular(999),
                 ),
-                child: const Text('LIVE', style: TextStyle(color: QBrand.fg, fontSize: 11, fontWeight: FontWeight.bold)),
+                child: const Text('LIVE', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
               ),
             ),
 
@@ -132,18 +132,18 @@ class _StreamCard extends StatelessWidget {
               top: 8,
               right: 8,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(4),
+                  color: Colors.black.withValues(alpha: 0.45),
+                  borderRadius: BorderRadius.circular(999),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.remove_red_eye_outlined, color: QBrand.fg, size: 12),
+                    const Icon(Icons.remove_red_eye_outlined, color: Colors.white, size: 12),
                     const SizedBox(width: 4),
                     Text(_fmt(stream.viewerCount),
-                        style: const TextStyle(color: QBrand.fg, fontSize: 11)),
+                        style: const TextStyle(color: Colors.white, fontSize: 11)),
                   ],
                 ),
               ),
@@ -158,10 +158,10 @@ class _StreamCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('@${stream.hostUsername}',
-                      style: const TextStyle(color: QBrand.fg, fontWeight: FontWeight.bold, fontSize: 12)),
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
                   const SizedBox(height: 2),
                   Text(stream.title,
-                      style: const TextStyle(color: QBrand.fgMute, fontSize: 11),
+                      style: const TextStyle(color: Colors.white70, fontSize: 11),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis),
                 ],

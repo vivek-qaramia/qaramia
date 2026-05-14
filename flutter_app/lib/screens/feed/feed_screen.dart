@@ -127,12 +127,12 @@ class _VideoCardState extends ConsumerState<VideoCard> {
             children: [
               Text(
                 '@${widget.video.authorUsername}',
-                style: const TextStyle(color: QBrand.fg, fontWeight: FontWeight.bold, fontSize: 16),
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
               ),
               const SizedBox(height: 4),
               Text(
                 widget.video.caption,
-                style: const TextStyle(color: QBrand.fgMute, fontSize: 14),
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -140,10 +140,10 @@ class _VideoCardState extends ConsumerState<VideoCard> {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Icon(Icons.music_note, color: QBrand.fgMute, size: 14),
+                    const Icon(Icons.music_note, color: Colors.white70, size: 14),
                     const SizedBox(width: 4),
                     Text(widget.video.audioTitle!,
-                        style: const TextStyle(color: QBrand.fgMute, fontSize: 12)),
+                        style: const TextStyle(color: Colors.white70, fontSize: 12)),
                   ],
                 ),
               ],
@@ -174,14 +174,14 @@ class _ActionColumn extends StatelessWidget {
               : null,
           backgroundColor: Colors.grey[800],
           child: video.authorAvatarUrl == null
-              ? const Icon(Icons.person, color: QBrand.fg)
+              ? const Icon(Icons.person, color: Colors.white)
               : null,
         ),
         const SizedBox(height: 20),
         _ActionBtn(
           icon: liked ? Icons.favorite : Icons.favorite_border,
           label: _fmt(video.likeCount),
-          color: liked ? const Color(0xFFFF7043) : QBrand.fg,
+          color: liked ? QBrand.love : Colors.white,
           onTap: onLike,
         ),
         const SizedBox(height: 20),
@@ -217,7 +217,7 @@ class _ActionBtn extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
-    this.color = QBrand.fg,
+    this.color = Colors.white,
   });
 
   @override
@@ -241,6 +241,6 @@ class _FeedSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(color: Colors.black,
-        child: const Center(child: CircularProgressIndicator(color: Color(0xFFFF7043))));
+        child: const Center(child: CircularProgressIndicator(color: Color(0xFF3830CC))));
   }
 }

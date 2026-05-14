@@ -64,7 +64,7 @@ class _PayoutsScreenState extends ConsumerState<PayoutsScreen> {
               decoration: BoxDecoration(
                 color: QBrand.card,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white12),
+                border: Border.all(color: QBrand.hairline),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -164,7 +164,7 @@ class _StatusCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: QBrand.card,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(color: QBrand.hairline),
       ),
       child: Row(
         children: [

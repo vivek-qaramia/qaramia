@@ -3,15 +3,25 @@ import 'package:flutter/material.dart';
 import '../models/video_filter.dart';
 import '../theme/brand.dart';
 
-/// Horizontal scroll of filter chips. Used in the Go Live setup screen.
+/// Horizontal scroll of filter chips. Used in the Go Live setup screen (light
+/// surface) and the in-broadcast bottom sheet (dark surface — pass onDark).
 class FilterPicker extends StatelessWidget {
   final String selectedId;
   final ValueChanged<VideoFilter> onSelected;
+  final bool onDark;
 
-  const FilterPicker({super.key, required this.selectedId, required this.onSelected});
+  const FilterPicker({
+    super.key,
+    required this.selectedId,
+    required this.onSelected,
+    this.onDark = false,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final unselectedBg = onDark ? Colors.white12 : QBrand.cardAlt;
+    final unselectedBorder = onDark ? Colors.white24 : QBrand.hairline;
+    final unselectedText = onDark ? Colors.white70 : QBrand.fg;
     return SizedBox(
       height: 44,
       child: ListView.separated(
@@ -26,10 +36,10 @@ class FilterPicker extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
-                color: selected ? QBrand.peach : Colors.white12,
-                borderRadius: BorderRadius.circular(100),
+                color: selected ? QBrand.primary : unselectedBg,
+                borderRadius: BorderRadius.circular(999),
                 border: Border.all(
-                  color: selected ? QBrand.peach : Colors.white24,
+                  color: selected ? QBrand.primary : unselectedBorder,
                 ),
               ),
               child: Row(
@@ -40,7 +50,7 @@ class FilterPicker extends StatelessWidget {
                   Text(
                     filter.name,
                     style: TextStyle(
-                      color: selected ? Colors.white : Colors.white70,
+                      color: selected ? Colors.white : unselectedText,
                       fontWeight: FontWeight.w700,
                       fontSize: 13,
                     ),
@@ -98,6 +108,7 @@ class FilterToggleButton extends StatelessWidget {
               const SizedBox(height: 8),
               FilterPicker(
                 selectedId: currentFilterId,
+                onDark: true,
                 onSelected: (f) {
                   onFilterChange(f);
                   Navigator.pop(sheetCtx);

@@ -33,22 +33,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home, color: Color(0xFFFF7043)),
+            selectedIcon: Icon(Icons.home, color: Color(0xFF3830CC)),
             label: 'Home',
           ),
           NavigationDestination(
             icon: Icon(Icons.search_outlined),
-            selectedIcon: Icon(Icons.search, color: Color(0xFFFF7043)),
+            selectedIcon: Icon(Icons.search, color: Color(0xFF3830CC)),
             label: 'Discover',
           ),
           NavigationDestination(
             icon: Icon(Icons.live_tv_outlined),
-            selectedIcon: Icon(Icons.live_tv, color: Color(0xFFFF7043)),
+            selectedIcon: Icon(Icons.live_tv, color: Color(0xFF3830CC)),
             label: 'Live',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outlined),
-            selectedIcon: Icon(Icons.person, color: Color(0xFFFF7043)),
+            selectedIcon: Icon(Icons.person, color: Color(0xFF3830CC)),
             label: 'Profile',
           ),
         ],

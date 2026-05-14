@@ -30,7 +30,7 @@ class AdsScreen extends ConsumerWidget {
         ],
       ),
       body: adsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator(color: QBrand.peach)),
+        loading: () => const Center(child: CircularProgressIndicator(color: QBrand.primary)),
         error: (e, _) => Center(child: Text('Failed to load ads: $e')),
         data: (ads) => ads.isEmpty
             ? _EmptyState(onCreate: () => Navigator.of(context).push(MaterialPageRoute(
@@ -113,10 +113,10 @@ class _AdRow extends ConsumerWidget {
             Container(
               width: 56, height: 56,
               decoration: BoxDecoration(
-                color: Colors.white12,
+                color: QBrand.cardAlt,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.campaign, color: Colors.white38),
+              child: const Icon(Icons.campaign, color: QBrand.fgDim),
             ),
           const SizedBox(width: 12),
           Expanded(
@@ -137,7 +137,7 @@ class _AdRow extends ConsumerWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: Colors.white12,
+                          color: QBrand.cardAlt,
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(k, style: const TextStyle(fontSize: 10, color: QBrand.fgMute)),
@@ -146,10 +146,10 @@ class _AdRow extends ConsumerWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: QBrand.peach.withValues(alpha: 0.2),
+                          color: QBrand.primary.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: Text(c, style: const TextStyle(fontSize: 10, color: QBrand.peach)),
+                        child: Text(c, style: const TextStyle(fontSize: 10, color: QBrand.primary)),
                       ),
                   ],
                 ),
@@ -302,7 +302,7 @@ class _CreateAdScreenState extends ConsumerState<_CreateAdScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: _categories.contains(cat) ? QBrand.peach : Colors.white12,
+                      color: _categories.contains(cat) ? QBrand.primary : Colors.white12,
                       borderRadius: BorderRadius.circular(100),
                     ),
                     child: Text(cat,

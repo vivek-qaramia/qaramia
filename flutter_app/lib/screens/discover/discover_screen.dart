@@ -140,12 +140,12 @@ class _TrendingSection extends ConsumerWidget {
                             right: 0,
                             child: Center(
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: Colors.red,
-                                  borderRadius: BorderRadius.circular(4),
+                                  color: QBrand.love,
+                                  borderRadius: BorderRadius.circular(999),
                                 ),
-                                child: const Text('LIVE', style: TextStyle(color: QBrand.fg, fontSize: 9, fontWeight: FontWeight.bold)),
+                                child: const Text('LIVE', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
                               ),
                             ),
                           ),

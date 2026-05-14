@@ -63,7 +63,7 @@ class WalletScreen extends ConsumerWidget {
               decoration: BoxDecoration(
                 color: QBrand.card,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white12),
+                border: Border.all(color: QBrand.hairline),
               ),
               child: const CoinPackPicker(),
             ),
@@ -107,7 +107,7 @@ class _BalanceCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: QBrand.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(color: QBrand.hairline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

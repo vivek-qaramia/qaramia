@@ -11,6 +11,9 @@ class ProductInfo {
   final String? barcode;
   final ProductSource source;
   final String? category;
+  final double? price;
+  final double? rating;
+  final int? reviewCount;
 
   const ProductInfo({
     this.name,
@@ -20,6 +23,9 @@ class ProductInfo {
     this.barcode,
     required this.source,
     this.category,
+    this.price,
+    this.rating,
+    this.reviewCount,
   });
 
   factory ProductInfo.fromJson(Map<String, dynamic> json) => ProductInfo(
@@ -33,6 +39,9 @@ class ProductInfo {
           orElse: () => ProductSource.vision,
         ),
         category: json['category'] as String?,
+        price: (json['price'] as num?)?.toDouble(),
+        rating: (json['rating'] as num?)?.toDouble(),
+        reviewCount: (json['reviewCount'] as num?)?.toInt(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -43,6 +52,9 @@ class ProductInfo {
         if (barcode != null) 'barcode': barcode,
         'source': source.name,
         if (category != null) 'category': category,
+        if (price != null) 'price': price,
+        if (rating != null) 'rating': rating,
+        if (reviewCount != null) 'reviewCount': reviewCount,
       };
 
   String get sourceLabel => switch (source) {
