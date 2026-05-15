@@ -4,6 +4,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/ad.dart';
 import '../models/product_info.dart';
 import '../providers/ad_providers.dart';
+import '../providers/cart_provider.dart';
+import '../screens/cart/my_bag_screen.dart';
 import '../theme/brand.dart';
 import '../utils/affiliate.dart';
 
@@ -155,6 +157,18 @@ class _ProductDrawerState extends ConsumerState<ProductDrawer> with TickerProvid
               widget.onAffiliateClick?.call();
               _openCta(url);
             },
+            onAddToBag: (p) {
+              ref.read(cartProvider.notifier).addProduct(p);
+              // Telemetry: treat add-to-bag as a buying-intent click. The real
+              // affiliate URL is launched later by MyBagScreen's checkout pill.
+              widget.onAffiliateClick?.call();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Added "${p.name ?? p.brand ?? 'item'}" to your bag'),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            },
           ),
         ),
       ],
@@ -162,12 +176,13 @@ class _ProductDrawerState extends ConsumerState<ProductDrawer> with TickerProvid
   }
 }
 
-class _Drawer extends StatelessWidget {
+class _Drawer extends ConsumerWidget {
   final List<ProductInfo> products;
   final Ad? featuredAd;
   final VoidCallback onClose;
   final VoidCallback onSponsoredTap;
   final ValueChanged<String> onAffiliateTap;
+  final ValueChanged<ProductInfo> onAddToBag;
 
   const _Drawer({
     required this.products,
@@ -175,10 +190,12 @@ class _Drawer extends StatelessWidget {
     required this.onClose,
     required this.onSponsoredTap,
     required this.onAffiliateTap,
+    required this.onAddToBag,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cartCount = ref.watch(cartCountProvider);
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -202,7 +219,7 @@ class _Drawer extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 14),
-            // Header: "Product (N)" + close
+            // Header: "Product (N)" + bag badge that opens My Bag
             Row(
               children: [
                 GestureDetector(
@@ -216,35 +233,40 @@ class _Drawer extends StatelessWidget {
                     style: const TextStyle(color: QBrand.fg, fontSize: 16, fontWeight: FontWeight.w700),
                   ),
                 ),
-                // Small purple-bordered chat-bubble icon with count (decorative, matches template)
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: QBrand.cardAlt,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.chat_bubble_outline, color: QBrand.fg, size: 16),
-                    ),
-                    Positioned(
-                      top: -4, right: -4,
-                      child: Container(
-                        constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        decoration: const BoxDecoration(
-                          color: QBrand.primary,
-                          shape: BoxShape.circle,
+                GestureDetector(
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const MyBagScreen()),
+                  ),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: QBrand.cardAlt,
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          '${products.length}',
-                          style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800),
-                        ),
+                        child: const Icon(Icons.shopping_bag_outlined, color: QBrand.fg, size: 18),
                       ),
-                    ),
-                  ],
+                      if (cartCount > 0)
+                        Positioned(
+                          top: -4, right: -4,
+                          child: Container(
+                            constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            decoration: const BoxDecoration(
+                              color: QBrand.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              '$cartCount',
+                              style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -266,7 +288,7 @@ class _Drawer extends StatelessWidget {
                     _ProductRow(
                       index: i + 1,
                       product: products[i],
-                      onBuyTap: onAffiliateTap,
+                      onAddToBag: () => onAddToBag(products[i]),
                     ),
                     if (i < products.length - 1)
                       const Padding(
@@ -386,13 +408,11 @@ class _AffiliateCard extends StatelessWidget {
 class _ProductRow extends StatelessWidget {
   final int index;
   final ProductInfo product;
-  final ValueChanged<String> onBuyTap;
-  const _ProductRow({required this.index, required this.product, required this.onBuyTap});
+  final VoidCallback onAddToBag;
+  const _ProductRow({required this.index, required this.product, required this.onAddToBag});
 
   @override
   Widget build(BuildContext context) {
-    final query = [product.brand, product.name].whereType<String>().where((s) => s.isNotEmpty).join(' ');
-    final hasQuery = query.isNotEmpty;
     final priceText = _displayPrice(product);
     final rating = _displayRating(product);
     return Row(
@@ -455,19 +475,18 @@ class _ProductRow extends StatelessWidget {
             ],
           ),
         ),
-        if (hasQuery)
-          GestureDetector(
-            onTap: () => onBuyTap(affiliateUrl(query)),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: QBrand.cardAlt,
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: const Text('Add to bag',
-                  style: TextStyle(color: QBrand.fg, fontSize: 11, fontWeight: FontWeight.w700)),
+        GestureDetector(
+          onTap: onAddToBag,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: QBrand.cardAlt,
+              borderRadius: BorderRadius.circular(999),
             ),
+            child: const Text('Add to bag',
+                style: TextStyle(color: QBrand.fg, fontSize: 11, fontWeight: FontWeight.w700)),
           ),
+        ),
       ],
     );
   }

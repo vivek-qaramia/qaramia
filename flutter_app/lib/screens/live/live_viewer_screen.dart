@@ -6,6 +6,7 @@ import '../../models/chat_message.dart';
 import '../../models/gift.dart';
 import '../../models/sponsorship.dart';
 import '../../providers/providers.dart';
+import '../../providers/cart_provider.dart';
 import '../../providers/sponsorship_providers.dart';
 import '../../services/cohost_service.dart';
 import '../../services/stream_service.dart' show InsufficientCoinsException;
@@ -16,6 +17,7 @@ import '../../widgets/gift_animation_overlay.dart';
 import '../../widgets/gift_panel.dart';
 import '../../widgets/product_drawer.dart';
 import '../../widgets/room_background_selector.dart';
+import '../cart/my_bag_screen.dart';
 import '../wallet/wallet_screen.dart';
 
 const _agoraAppId = String.fromEnvironment('AGORA_APP_ID', defaultValue: 'YOUR_AGORA_APP_ID');
@@ -32,6 +34,7 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
   RtcEngine? _engine;
   int? _remoteUid;
   bool _showGiftPanel = false;
+  bool _shopMode = true; // Shop/Reels top-right toggle (Shop = default)
   Map<String, dynamic>? _pendingInvite;
   final _chatCtrl = TextEditingController();
   final _cohostService = CoHostService();
@@ -268,8 +271,8 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
 
           // Live-commerce surface — floating bag + slide-up drawer
           ProductDrawer(
-            products: liveStream.featuredProducts,
-            featuredAd: liveStream.featuredAd,
+            products: _shopMode ? liveStream.featuredProducts : const [],
+            featuredAd: _shopMode ? liveStream.featuredAd : null,
           ),
 
           // Co-host invite banner
@@ -308,7 +311,8 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
               ),
             ),
 
-          // Top bar — template-aligned: avatar w/ Live tag + name + Follow + viewers + close
+          // Top bar — template-aligned: avatar w/ Live tag + name + Follow,
+          // Shop/Reels segmented toggle on the right, close X on the far right.
           Positioned(
             top: 0,
             left: 0,
@@ -316,12 +320,39 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
             child: SafeArea(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                child: _TopBar(
-                  hostUid: widget.stream.hostUid,
-                  hostUsername: widget.stream.hostUsername,
-                  hostAvatarUrl: widget.stream.hostAvatarUrl,
-                  viewerCount: liveStream.viewerCount,
-                  onClose: () => Navigator.pop(context),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _TopBar(
+                            hostUid: widget.stream.hostUid,
+                            hostUsername: widget.stream.hostUsername,
+                            hostAvatarUrl: widget.stream.hostAvatarUrl,
+                            viewerCount: liveStream.viewerCount,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _ShopReelsToggle(
+                          selected: _shopMode,
+                          onChanged: (v) => setState(() => _shopMode = v),
+                        ),
+                        const SizedBox(width: 6),
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.45),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.close, color: Colors.white, size: 18),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -348,6 +379,12 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
                   ),
                   child: Row(
                     children: [
+                      _BagButton(
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const MyBagScreen()),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
                       Expanded(
                         child: TextField(
                           controller: _chatCtrl,
@@ -511,19 +548,19 @@ class _ChatBubble extends StatelessWidget {
   }
 }
 
-/// Top bar: avatar + "Live" tag + name + +Follow pill + viewers + close.
+/// Top bar pill: avatar + "Live" tag + name + viewers + +Follow.
+/// Wrapped in Expanded by the caller so it pushes the Shop/Reels toggle and
+/// close-X to the right edge.
 class _TopBar extends ConsumerStatefulWidget {
   final String hostUid;
   final String hostUsername;
   final String? hostAvatarUrl;
   final int viewerCount;
-  final VoidCallback onClose;
   const _TopBar({
     required this.hostUid,
     required this.hostUsername,
     required this.hostAvatarUrl,
     required this.viewerCount,
-    required this.onClose,
   });
 
   @override
@@ -635,20 +672,98 @@ class _TopBarState extends ConsumerState<_TopBar> {
             ],
           ),
         ),
-        const Spacer(),
-        GestureDetector(
-          onTap: widget.onClose,
-          child: Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.45),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.close, color: Colors.white, size: 18),
+      ],
+    );
+  }
+}
+
+/// Inline 🛍 button in the bottom action row. Shows an indigo count badge
+/// when the cart has items; tapping opens MyBagScreen.
+class _BagButton extends ConsumerWidget {
+  final VoidCallback onTap;
+  const _BagButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final count = ref.watch(cartCountProvider);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            const Text('🛍', style: TextStyle(fontSize: 24)),
+            if (count > 0)
+              Positioned(
+                top: -4, right: -8,
+                child: Container(
+                  constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: BoxDecoration(
+                    color: QBrand.primary,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: Colors.white, width: 1.5),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text('$count',
+                      style: const TextStyle(
+                          color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Segmented Shop / Reels pill that mirrors the template. Stores selection in
+/// caller state so the live-viewer surface can swap content (currently a
+/// visual affordance — Reels view is reserved for a future feed integration).
+class _ShopReelsToggle extends StatelessWidget {
+  final bool selected; // true = Shop, false = Reels
+  final ValueChanged<bool> onChanged;
+
+  const _ShopReelsToggle({required this.selected, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _segment(label: 'Shop', active: selected, onTap: () => onChanged(true)),
+          _segment(label: 'Reels', active: !selected, onTap: () => onChanged(false)),
+        ],
+      ),
+    );
+  }
+
+  Widget _segment({required String label, required bool active, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: active ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: active ? QBrand.fg : Colors.white70,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
           ),
         ),
-      ],
+      ),
     );
   }
 }
