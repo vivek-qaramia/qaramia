@@ -30,6 +30,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   final _titleCtrl = TextEditingController();
   String _category = 'General';
   bool _isStreaming = false;
+  bool _starting = false;
   bool _roomMode = false;
   String _selectedBgId = 'modern_studio';
   String _filterId = 'none';
@@ -47,9 +48,13 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   }
 
   Future<void> _startStream() async {
+    if (_starting) return;
+    FocusScope.of(context).unfocus(); // close keyboard so SnackBars are visible
+    debugPrint('[GoLive] tap');
+
     final title = _titleCtrl.text.trim();
     if (title.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter a stream title')));
+      _showError('Enter a stream title');
       return;
     }
 
@@ -64,11 +69,17 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       return;
     }
     if (_agoraAppId == 'YOUR_AGORA_APP_ID' || _agoraAppId.isEmpty) {
-      _showError('AGORA_APP_ID not set. Re-run with --dart-define=AGORA_APP_ID=…');
+      _showError(
+        'AGORA_APP_ID not set. In Android Studio: Run > Edit Configurations > '
+        'Additional run args: --dart-define-from-file=dart_defines.json, then '
+        'STOP the app and re-run (hot-reload will not pick this up).',
+      );
       return;
     }
 
+    setState(() => _starting = true);
     try {
+      debugPrint('[GoLive] creating Firestore stream doc');
       final stream = await ref.read(streamServiceProvider).startStream(
         hostUid: user.uid,
         hostUsername: currentUser.username,
@@ -76,22 +87,25 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         title: title,
         category: _category,
       );
+      debugPrint('[GoLive] stream doc created id=${stream.id}');
 
+      debugPrint('[GoLive] initialising Agora engine (App ID ${_agoraAppId.length} chars)');
       _engine = createAgoraRtcEngine();
       await _engine!.initialize(RtcEngineContext(appId: _agoraAppId));
+      debugPrint('[GoLive] engine initialised');
+
       await _engine!.enableVideo();
+      debugPrint('[GoLive] enableVideo done (camera permission prompt may have shown)');
       await _engine!.setClientRole(role: ClientRoleType.clientRoleBroadcaster);
 
-      // Apply virtual background if room mode is on
       if (_roomMode) {
         await _applyVirtualBackground(_selectedBgId);
       }
-
-      // Apply the chosen filter's native beauty option (color overlay is done
-      // in the widget tree). Safe to call even for Normal — Agora will disable.
       await _applyFilterToEngine(VideoFilter.byId(_filterId));
 
       await _engine!.startPreview();
+      debugPrint('[GoLive] startPreview done');
+
       await _engine!.joinChannel(
         token: '',
         channelId: stream.agoraChannel,
@@ -102,26 +116,34 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           publishMicrophoneTrack: true,
         ),
       );
+      debugPrint('[GoLive] joinChannel returned — switching to broadcast view');
 
+      if (!mounted) return;
       setState(() {
         _activeStream = stream;
         _isStreaming = true;
+        _starting = false;
       });
     } catch (e, stack) {
-      debugPrint('Go Live failed: $e\n$stack');
+      debugPrint('[GoLive] FAILED: $e\n$stack');
+      if (mounted) setState(() => _starting = false);
       _showError('Go Live failed: $e');
     }
   }
 
   void _showError(String msg) {
+    debugPrint('[GoLive] error: $msg');
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: Colors.red.shade900,
-        duration: const Duration(seconds: 6),
-      ),
-    );
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: Colors.red.shade900,
+          duration: const Duration(seconds: 8),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
   }
 
   Future<void> _applyVirtualBackground(String bgId) async {
@@ -332,11 +354,16 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               width: double.infinity,
               height: 56,
               child: FilledButton.icon(
-                onPressed: _startStream,
-                icon: const Icon(Icons.videocam),
-                label: const Text(
-                  'Go Live',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                onPressed: _starting ? null : _startStream,
+                icon: _starting
+                    ? const SizedBox(
+                        width: 18, height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.videocam),
+                label: Text(
+                  _starting ? 'Going live…' : 'Go Live',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                 ),
               ),
             ),
