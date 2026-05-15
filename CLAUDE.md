@@ -115,8 +115,8 @@ Danmaku lives in RTDB (not Firestore) because RTDB handles high-frequency small 
 5. Create Firestore DB (production mode) + Realtime Database
 6. `firebase deploy --only firestore:rules`
 7. `firebase deploy --only database`
-8. Get Agora App ID at console.agora.io → add to `--dart-define=AGORA_APP_ID=xxx` or your IDE run config
-9. `flutter pub get && flutter run`
+8. Get Agora App ID at console.agora.io. Copy `flutter_app/dart_defines.example.json` to `flutter_app/dart_defines.json` and replace the placeholder. The file is gitignored.
+9. `flutter pub get && flutter run --dart-define-from-file=dart_defines.json`
 
 ### Next.js
 1. Copy `.env.local.example` → `.env.local` and fill in Firebase + Agora keys
