@@ -1,11 +1,15 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../models/live_stream.dart';
 import '../../providers/providers.dart';
 import '../../services/cohost_service.dart';
 import '../../models/video_filter.dart';
 import '../../theme/brand.dart';
+import 'post_stream_editor_screen.dart';
 import '../../widgets/broadcast_scan_button.dart';
 import '../../widgets/captions_controller.dart';
 import '../../widgets/danmaku_overlay.dart';
@@ -36,6 +40,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   String _filterId = 'none';
   LiveStream? _activeStream;
   RtcEngine? _engine;
+  MediaRecorder? _recorder;
+  String? _recordingPath;
   final _cohostService = CoHostService();
 
   static const _categories = ['General', 'Gaming', 'Music', 'IRL', 'Sports', 'Cooking', 'Education'];
@@ -118,6 +124,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       );
       debugPrint('[GoLive] joinChannel returned — switching to broadcast view');
 
+      // Best-effort: start local recording so the host can edit + publish
+      // after the stream ends. Failures here don't block the broadcast.
+      await _startRecording(stream);
+
       if (!mounted) return;
       setState(() {
         _activeStream = stream;
@@ -163,6 +173,53 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     );
   }
 
+  /// Start local recording of the host's outgoing stream to an mp4 file in
+  /// the app's documents directory. The path is held in [_recordingPath] so
+  /// `_stopStream` can hand it to the post-stream editor screen.
+  Future<void> _startRecording(LiveStream stream) async {
+    if (_engine == null) return;
+    try {
+      final docs = await getApplicationDocumentsDirectory();
+      final dir = Directory('${docs.path}/recordings');
+      if (!await dir.exists()) await dir.create(recursive: true);
+      final path = '${dir.path}/${stream.id}.mp4';
+
+      _recorder = await _engine!.createMediaRecorder(
+        RecorderStreamInfo(channelId: stream.agoraChannel, uid: 0),
+      );
+      await _recorder!.startRecording(MediaRecorderConfiguration(
+        storagePath: path,
+        containerFormat: MediaRecorderContainerFormat.formatMp4,
+        streamType: MediaRecorderStreamType.streamTypeBoth,
+        maxDurationMs: 60 * 60 * 1000, // 1 hour cap
+        recorderInfoUpdateInterval: 1000,
+      ));
+      _recordingPath = path;
+      debugPrint('[GoLive] recording -> $path');
+    } catch (e) {
+      debugPrint('[GoLive] startRecording failed: $e');
+      _recorder = null;
+      _recordingPath = null;
+    }
+  }
+
+  /// Stops the active recorder and tears it down. Safe to call when nothing
+  /// is recording. Does NOT delete the file.
+  Future<void> _stopRecording() async {
+    if (_recorder == null) return;
+    try {
+      await _recorder!.stopRecording();
+      if (_engine != null) {
+        await _engine!.destroyMediaRecorder(_recorder!);
+      }
+      debugPrint('[GoLive] recording stopped, file at $_recordingPath');
+    } catch (e) {
+      debugPrint('[GoLive] stopRecording failed: $e');
+    } finally {
+      _recorder = null;
+    }
+  }
+
   /// Apply a filter's native beauty options to the Agora engine. Color-grading
   /// (Warm/Cool/Noir/Cinema) is rendered in the widget tree via ColorFiltered.
   Future<void> _applyFilterToEngine(VideoFilter filter) async {
@@ -195,6 +252,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     final user = ref.read(authStateProvider).valueOrNull;
     final streamId = _activeStream!.id;
 
+    // Stop the recorder BEFORE leaving the channel so the trailing frames
+    // get flushed into the mp4 container. Capture the path locally because
+    // _recordingPath is cleared by setState below.
+    await _stopRecording();
+    final recordingPath = _recordingPath;
+
     // Commit estimated session earnings to the user doc before tearing down.
     if (user != null) {
       final stats = ref.read(sessionStatsProvider(streamId));
@@ -209,8 +272,26 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     }
     await _engine?.leaveChannel();
     await _engine?.release();
-    setState(() { _isStreaming = false; _activeStream = null; });
-    if (mounted) Navigator.pop(context);
+    setState(() {
+      _isStreaming = false;
+      _activeStream = null;
+      _recordingPath = null;
+    });
+
+    // If we recorded successfully, hand the file off to the post-stream
+    // editor (Phase 1: stub). Otherwise just back out.
+    final hasRecording =
+        recordingPath != null && await File(recordingPath).exists();
+    if (!mounted) return;
+    if (hasRecording) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => PostStreamEditorScreen(recordingPath: recordingPath),
+        ),
+      );
+    } else {
+      Navigator.pop(context);
+    }
   }
 
   void _inviteCoHost() {
