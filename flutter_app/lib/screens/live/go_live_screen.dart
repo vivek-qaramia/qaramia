@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:flutter_screen_recording/flutter_screen_recording.dart';
 import '../../models/live_stream.dart';
 import '../../providers/providers.dart';
 import '../../services/cohost_service.dart';
@@ -40,7 +40,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   String _filterId = 'none';
   LiveStream? _activeStream;
   RtcEngine? _engine;
-  MediaRecorder? _recorder;
+  bool _isRecording = false;
   String? _recordingPath;
   final _cohostService = CoHostService();
 
@@ -49,7 +49,14 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   @override
   void dispose() {
     _titleCtrl.dispose();
-    if (_isStreaming && _activeStream != null) _stopStream();
+    if (_isStreaming && _activeStream != null) {
+      _stopStream();
+    } else if (_engine != null) {
+      // Engine was created but stream never went live (e.g. failure mid-start);
+      // release it so the next Go Live attempt starts clean.
+      _engine?.release();
+      _engine = null;
+    }
     super.dispose();
   }
 
@@ -96,6 +103,14 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       debugPrint('[GoLive] stream doc created id=${stream.id}');
 
       debugPrint('[GoLive] initialising Agora engine (App ID ${_agoraAppId.length} chars)');
+      // Defensive: if a previous attempt left an engine alive, fully tear it
+      // down before creating a new one. createAgoraRtcEngine returns a shared
+      // singleton, so re-initialising over a live one is what triggers -17.
+      if (_engine != null) {
+        try { await _engine!.leaveChannel(); } catch (_) {}
+        try { await _engine!.release(sync: true); } catch (_) {}
+        _engine = null;
+      }
       _engine = createAgoraRtcEngine();
       await _engine!.initialize(RtcEngineContext(appId: _agoraAppId));
       debugPrint('[GoLive] engine initialised');
@@ -107,10 +122,26 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       if (_roomMode) {
         await _applyVirtualBackground(_selectedBgId);
       }
-      await _applyFilterToEngine(VideoFilter.byId(_filterId));
 
       await _engine!.startPreview();
       debugPrint('[GoLive] startPreview done');
+
+      // Beauty options require the video pipeline to be running, so this must
+      // happen AFTER startPreview. Failures are non-fatal — better to go live
+      // without the filter than to abort the broadcast.
+      await _applyFilterToEngine(VideoFilter.byId(_filterId));
+
+      // Kick off local recording only after onJoinChannelSuccess — the channel
+      // isn't truly joined when joinChannel's future resolves, and the
+      // recorder rejects with -4 (NOT_SUPPORTED) if started before then.
+      _engine!.registerEventHandler(
+        RtcEngineEventHandler(
+          onJoinChannelSuccess: (RtcConnection conn, int elapsed) {
+            debugPrint('[GoLive] onJoinChannelSuccess uid=${conn.localUid} elapsed=${elapsed}ms');
+            if (mounted && !_isRecording) _startRecording(stream);
+          },
+        ),
+      );
 
       await _engine!.joinChannel(
         token: '',
@@ -122,11 +153,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           publishMicrophoneTrack: true,
         ),
       );
-      debugPrint('[GoLive] joinChannel returned — switching to broadcast view');
-
-      // Best-effort: start local recording so the host can edit + publish
-      // after the stream ends. Failures here don't block the broadcast.
-      await _startRecording(stream);
+      debugPrint('[GoLive] joinChannel returned — waiting for onJoinChannelSuccess');
 
       if (!mounted) return;
       setState(() {
@@ -136,6 +163,15 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       });
     } catch (e, stack) {
       debugPrint('[GoLive] FAILED: $e\n$stack');
+      // Release the engine so a retry doesn't trip Agora -17 (JOIN_REJECTED)
+      // — the native engine remembers the half-completed previous attempt.
+      try {
+        await _engine?.leaveChannel();
+      } catch (_) {}
+      try {
+        await _engine?.release();
+      } catch (_) {}
+      _engine = null;
       if (mounted) setState(() => _starting = false);
       _showError('Go Live failed: $e');
     }
@@ -173,50 +209,46 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     );
   }
 
-  /// Start local recording of the host's outgoing stream to an mp4 file in
-  /// the app's documents directory. The path is held in [_recordingPath] so
-  /// `_stopStream` can hand it to the post-stream editor screen.
+  /// Start screen recording of the live stream so the host can edit + publish
+  /// after ending. We use Android MediaProjection (via flutter_screen_recording)
+  /// rather than Agora's MediaRecorder because the latter returns -4
+  /// NOT_SUPPORTED on this SDK build. The plugin will trigger a one-time
+  /// system permission dialog before capture starts.
   Future<void> _startRecording(LiveStream stream) async {
-    if (_engine == null) return;
     try {
-      final docs = await getApplicationDocumentsDirectory();
-      final dir = Directory('${docs.path}/recordings');
-      if (!await dir.exists()) await dir.create(recursive: true);
-      final path = '${dir.path}/${stream.id}.mp4';
-
-      _recorder = await _engine!.createMediaRecorder(
-        RecorderStreamInfo(channelId: stream.agoraChannel, uid: 0),
-      );
-      await _recorder!.startRecording(MediaRecorderConfiguration(
-        storagePath: path,
-        containerFormat: MediaRecorderContainerFormat.formatMp4,
-        streamType: MediaRecorderStreamType.streamTypeBoth,
-        maxDurationMs: 60 * 60 * 1000, // 1 hour cap
-        recorderInfoUpdateInterval: 1000,
-      ));
-      _recordingPath = path;
-      debugPrint('[GoLive] recording -> $path');
+      // The plugin writes the file itself (Android Movies dir on Android);
+      // we just give it a stable name based on the stream id.
+      final filename = 'qaramia_${stream.id}';
+      final started = await FlutterScreenRecording.startRecordScreen(filename);
+      if (!started) {
+        debugPrint('[GoLive] startRecordScreen returned false (user denied?)');
+        return;
+      }
+      _isRecording = true;
+      // Path is only known at stop time on Android — keep filename as a
+      // placeholder so existing `_recordingPath != null` checks still work.
+      _recordingPath = filename;
+      debugPrint('[GoLive] screen recording started (filename=$filename)');
     } catch (e) {
       debugPrint('[GoLive] startRecording failed: $e');
-      _recorder = null;
+      _isRecording = false;
       _recordingPath = null;
     }
   }
 
-  /// Stops the active recorder and tears it down. Safe to call when nothing
-  /// is recording. Does NOT delete the file.
+  /// Stops the active screen recorder. Safe to call when nothing is recording.
+  /// Updates `_recordingPath` to the final file location returned by the
+  /// plugin. Does NOT delete the file.
   Future<void> _stopRecording() async {
-    if (_recorder == null) return;
+    if (!_isRecording) return;
     try {
-      await _recorder!.stopRecording();
-      if (_engine != null) {
-        await _engine!.destroyMediaRecorder(_recorder!);
-      }
-      debugPrint('[GoLive] recording stopped, file at $_recordingPath');
+      final path = await FlutterScreenRecording.stopRecordScreen;
+      _recordingPath = path;
+      debugPrint('[GoLive] recording stopped, file at $path');
     } catch (e) {
       debugPrint('[GoLive] stopRecording failed: $e');
     } finally {
-      _recorder = null;
+      _isRecording = false;
     }
   }
 
@@ -224,18 +256,22 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   /// (Warm/Cool/Noir/Cinema) is rendered in the widget tree via ColorFiltered.
   Future<void> _applyFilterToEngine(VideoFilter filter) async {
     if (_engine == null) return;
-    if (filter.hasBeauty) {
-      await _engine!.setBeautyEffectOptions(
-        enabled: true,
-        options: filter.beautyOptions!,
-      );
-    } else {
-      // Always disable explicitly — if you switch from Beauty → Warm we don't
-      // want the smoothing to persist underneath the color overlay.
-      await _engine!.setBeautyEffectOptions(
-        enabled: false,
-        options: const BeautyOptions(),
-      );
+    try {
+      if (filter.hasBeauty) {
+        await _engine!.setBeautyEffectOptions(
+          enabled: true,
+          options: filter.beautyOptions!,
+        );
+      } else {
+        // Always disable explicitly — if you switch from Beauty → Warm we don't
+        // want the smoothing to persist underneath the color overlay.
+        await _engine!.setBeautyEffectOptions(
+          enabled: false,
+          options: const BeautyOptions(),
+        );
+      }
+    } catch (e) {
+      debugPrint('[GoLive] setBeautyEffectOptions failed (non-fatal): $e');
     }
   }
 
@@ -271,7 +307,11 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       await ref.read(streamServiceProvider).endStream(streamId, user.uid);
     }
     await _engine?.leaveChannel();
-    await _engine?.release();
+    // sync: true blocks until the native engine has fully torn down. Without
+    // this, an immediate retry of Go Live can race the still-releasing native
+    // singleton and fail with -17 (JOIN_REJECTED).
+    await _engine?.release(sync: true);
+    _engine = null;
     setState(() {
       _isStreaming = false;
       _activeStream = null;
@@ -457,7 +497,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
 }
 
 // ─── Broadcast view ───────────────────────────────────────────────────────────
-class _BroadcastView extends ConsumerWidget {
+class _BroadcastView extends ConsumerStatefulWidget {
   final LiveStream stream;
   final RtcEngine engine;
   final bool roomMode;
@@ -479,7 +519,43 @@ class _BroadcastView extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_BroadcastView> createState() => _BroadcastViewState();
+}
+
+class _BroadcastViewState extends ConsumerState<_BroadcastView> {
+  // The video controller is held in state so it survives parent rebuilds
+  // (viewer-count tick, danmaku delivery, screen-recording display events).
+  // Constructing a fresh controller inside build() leaves the camera preview
+  // surface unrendered.
+  late final VideoViewController _videoController;
+
+  @override
+  void initState() {
+    super.initState();
+    _videoController = VideoViewController(
+      rtcEngine: widget.engine,
+      canvas: const VideoCanvas(uid: 0),
+      // Render via Flutter Texture rather than Android SurfaceView. The
+      // default SurfaceView path can be obscured (or Z-ordered behind the
+      // window background) when MediaProjection's virtual display is active
+      // for screen recording, producing a black preview even though the
+      // camera is actively capturing.
+      useFlutterTexture: true,
+    );
+  }
+
+  // Convenience getters so the build method below stays close to the original.
+  LiveStream get stream => widget.stream;
+  RtcEngine get engine => widget.engine;
+  bool get roomMode => widget.roomMode;
+  CoHostService get cohostService => widget.cohostService;
+  String get filterId => widget.filterId;
+  ValueChanged<VideoFilter> get onFilterChange => widget.onFilterChange;
+  VoidCallback get onInvite => widget.onInvite;
+  VoidCallback get onEnd => widget.onEnd;
+
+  @override
+  Widget build(BuildContext context) {
     final messages = ref.watch(danmakuMessagesProvider(stream.id));
     final streamAsync = ref.watch(singleStreamProvider(stream.id));
     final liveStream = streamAsync.valueOrNull ?? stream;
@@ -497,14 +573,10 @@ class _BroadcastView extends ConsumerWidget {
           if (filter.hasColorOverlay)
             ColorFiltered(
               colorFilter: ColorFilter.matrix(filter.colorMatrix!),
-              child: AgoraVideoView(
-                controller: VideoViewController(rtcEngine: engine, canvas: const VideoCanvas(uid: 0)),
-              ),
+              child: AgoraVideoView(controller: _videoController),
             )
           else
-            AgoraVideoView(
-              controller: VideoViewController(rtcEngine: engine, canvas: const VideoCanvas(uid: 0)),
-            ),
+            AgoraVideoView(controller: _videoController),
           DanmakuOverlay(messages: messages),
           GiftAnimationOverlay(streamId: stream.id),
           Positioned(
@@ -593,14 +665,17 @@ class _BroadcastView extends ConsumerWidget {
             right: 16, bottom: 24,
             child: BroadcastScanButton(engine: engine, streamId: stream.id),
           ),
-          // Live captions toggle (top right, below the End/Invite row)
+          // Live captions toggle (top right, below the End/Invite row).
+          // Pushed to y=120 because devices with display cutouts have a
+          // SafeArea > 40px, which made the previous top:64 collide with
+          // the End button row.
           Positioned(
-            right: 16, top: 64,
+            right: 16, top: 120,
             child: CaptionsController(streamId: stream.id),
           ),
-          // Filter picker chip (top right, stacked under the CC pill)
+          // Filter picker chip (top right, stacked under the CC pill).
           Positioned(
-            right: 16, top: 140,
+            right: 16, top: 196,
             child: FilterToggleButton(
               currentFilterId: filterId,
               onFilterChange: onFilterChange,

@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../theme/brand.dart';
 import 'package:video_player/video_player.dart';
-import '../../providers/providers.dart';
 import '../../models/video.dart';
+import '../../models/video_filter.dart';
+import '../../providers/providers.dart';
 
 class FeedScreen extends ConsumerWidget {
   const FeedScreen({super.key});
@@ -86,13 +87,23 @@ class _VideoCardState extends ConsumerState<VideoCard> {
     return Stack(
       fit: StackFit.expand,
       children: [
-        // Video
+        // Video — wrapped in the post-stream-editor's color-grading filter
+        // when filterId is set on the doc. Beauty has no matrix so it
+        // renders as Normal here.
         if (_initialized)
           GestureDetector(
             onTap: () => _ctrl.value.isPlaying ? _ctrl.pause() : _ctrl.play(),
             child: AspectRatio(
               aspectRatio: _ctrl.value.aspectRatio,
-              child: VideoPlayer(_ctrl),
+              child: () {
+                final filter = VideoFilter.byId(widget.video.filterId);
+                final player = VideoPlayer(_ctrl);
+                if (!filter.hasColorOverlay) return player;
+                return ColorFiltered(
+                  colorFilter: ColorFilter.matrix(filter.colorMatrix!),
+                  child: player,
+                );
+              }(),
             ),
           )
         else

@@ -26,6 +26,11 @@ dependencies:
   # Live streaming
   agora_rtc_engine: ^6.3.2
 
+  # Screen recording of the live stream for the post-stream editor.
+  # Agora's built-in MediaRecorder returns -4 NOT_SUPPORTED on this SDK build,
+  # so we use Android's MediaProjection / iOS ReplayKit via this plugin instead.
+  flutter_screen_recording: ^2.0.25
+
   # Video playback
   video_player: ^2.9.2
   chewie: ^1.8.5

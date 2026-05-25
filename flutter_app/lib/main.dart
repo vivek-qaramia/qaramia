@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'firebase_options.dart';
 import 'providers/providers.dart';
 import 'screens/auth/auth_screen.dart';
@@ -9,6 +10,12 @@ import 'theme/brand.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Don't hang the UI fetching fonts at runtime — on flaky networks (e.g.
+  // Android emulator) the TLS handshake to fonts.gstatic.com can stall and
+  // freeze the login screen. With this off, google_fonts falls back to the
+  // platform default font silently. To get the branded fonts in release,
+  // bundle them as assets and register them via the font family API.
+  GoogleFonts.config.allowRuntimeFetching = false;
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const ProviderScope(child: QaramiaApp()));
 }

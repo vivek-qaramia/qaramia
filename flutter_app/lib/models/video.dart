@@ -14,6 +14,7 @@ class Video {
   final int shareCount;
   final int viewCount;
   final String? audioTitle;
+  final String filterId;
   final DateTime createdAt;
 
   const Video({
@@ -30,6 +31,7 @@ class Video {
     this.shareCount = 0,
     this.viewCount = 0,
     this.audioTitle,
+    this.filterId = 'none',
     required this.createdAt,
   });
 
@@ -47,6 +49,7 @@ class Video {
         shareCount: (json['shareCount'] as num?)?.toInt() ?? 0,
         viewCount: (json['viewCount'] as num?)?.toInt() ?? 0,
         audioTitle: json['audioTitle'] as String?,
+        filterId: json['filterId'] as String? ?? 'none',
         createdAt: (json['createdAt'] as Timestamp).toDate(),
       );
 
@@ -64,6 +67,7 @@ class Video {
         'shareCount': shareCount,
         'viewCount': viewCount,
         'audioTitle': audioTitle,
+        'filterId': filterId,
         'createdAt': Timestamp.fromDate(createdAt),
       };
 }
