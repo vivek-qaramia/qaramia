@@ -217,9 +217,15 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   Future<void> _startRecording(LiveStream stream) async {
     try {
       // The plugin writes the file itself (Android Movies dir on Android);
-      // we just give it a stable name based on the stream id.
+      // we just give it a stable name based on the stream id. Use
+      // startRecordScreenAndAudio so the mic is captured alongside the
+      // screen — without this the published video is silent.
+      // Caveat: Agora is also reading the mic to encode the live broadcast.
+      // On some devices Android's AudioFlinger refuses a second mic
+      // consumer; if that happens, the recording will simply fail to start
+      // and we keep the broadcast working without a recording.
       final filename = 'qaramia_${stream.id}';
-      final started = await FlutterScreenRecording.startRecordScreen(filename);
+      final started = await FlutterScreenRecording.startRecordScreenAndAudio(filename);
       if (!started) {
         debugPrint('[GoLive] startRecordScreen returned false (user denied?)');
         return;

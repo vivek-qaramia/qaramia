@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../theme/brand.dart';
 import 'package:video_player/video_player.dart';
 import '../../models/video.dart';
 import '../../models/video_filter.dart';
 import '../../providers/providers.dart';
+import '../../theme/brand.dart';
 
 class FeedScreen extends ConsumerWidget {
   const FeedScreen({super.key});
