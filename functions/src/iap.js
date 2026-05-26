@@ -14,7 +14,7 @@
  *                                   Create via Google Cloud Console + grant access
  *                                   in Play Console → Settings → API access.
  */
-const functions = require('firebase-functions');
+const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const { google } = require('googleapis');
 

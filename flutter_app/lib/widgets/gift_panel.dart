@@ -50,10 +50,11 @@ class GiftPanel extends ConsumerWidget {
             .toList() ??
         const [];
 
+    final catalog = ref.watch(giftCatalogProvider);
     final byTier = {
-      GiftTier.standard: GiftType.catalog.where((g) => g.tier == GiftTier.standard).toList(),
-      GiftTier.premium:  GiftType.catalog.where((g) => g.tier == GiftTier.premium).toList(),
-      GiftTier.whale:    GiftType.catalog.where((g) => g.tier == GiftTier.whale).toList(),
+      GiftTier.standard: catalog.where((g) => g.tier == GiftTier.standard).toList(),
+      GiftTier.premium:  catalog.where((g) => g.tier == GiftTier.premium).toList(),
+      GiftTier.whale:    catalog.where((g) => g.tier == GiftTier.whale).toList(),
     };
 
     return Container(
@@ -168,7 +169,7 @@ class _TierSection extends StatelessWidget {
   }
 }
 
-class _SponsoredRow extends StatelessWidget {
+class _SponsoredRow extends ConsumerWidget {
   final List<Sponsorship> sponsorships;
   final int coins;
   final void Function(GiftType, {Sponsorship? sponsorship}) onSelected;
@@ -180,10 +181,11 @@ class _SponsoredRow extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final catalog = ref.watch(giftCatalogProvider);
     final pairs = <(GiftType, Sponsorship)>[];
     for (final s in sponsorships) {
-      final g = GiftType.catalog.where((g) => g.id == s.giftTypeId).firstOrNull;
+      final g = catalog.where((g) => g.id == s.giftTypeId).firstOrNull;
       if (g != null) pairs.add((g, s));
     }
     if (pairs.isEmpty) return const SizedBox.shrink();

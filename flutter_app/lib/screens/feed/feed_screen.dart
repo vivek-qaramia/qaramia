@@ -50,6 +50,10 @@ class _VideoCardState extends ConsumerState<VideoCard> {
   late VideoPlayerController _ctrl;
   bool _liked = false;
   bool _initialized = false;
+  // Track whether the user is currently navigated away to a non-Home tab
+  // (Discover / Live / Profile). When true we pause the player so the audio
+  // doesn't keep going in the background.
+  bool _pausedForOffTab = false;
 
   @override
   void initState() {
@@ -58,7 +62,10 @@ class _VideoCardState extends ConsumerState<VideoCard> {
       ..initialize().then((_) {
         if (mounted) {
           setState(() => _initialized = true);
-          _ctrl.play();
+          // Only autoplay if the Home tab is currently active. If the card
+          // is mounted while we're on another tab (e.g. switching back to
+          // Home rebuilt this card), don't kick off audio.
+          if (ref.read(homeTabIndexProvider) == 0) _ctrl.play();
           _ctrl.setLooping(true);
           ref.read(videoServiceProvider).incrementView(widget.video.id);
         }
@@ -84,6 +91,21 @@ class _VideoCardState extends ConsumerState<VideoCard> {
 
   @override
   Widget build(BuildContext context) {
+    // React to tab switches: when the user leaves the Home tab, pause the
+    // current player so the audio doesn't keep playing in the background;
+    // when they come back, resume — but only if it was us who paused it
+    // (don't override a manual user pause from tap-to-pause).
+    ref.listen<int>(homeTabIndexProvider, (prev, next) {
+      if (!_initialized) return;
+      if (next != 0 && _ctrl.value.isPlaying) {
+        _ctrl.pause();
+        _pausedForOffTab = true;
+      } else if (next == 0 && _pausedForOffTab) {
+        _ctrl.play();
+        _pausedForOffTab = false;
+      }
+    });
+
     return Stack(
       fit: StackFit.expand,
       children: [

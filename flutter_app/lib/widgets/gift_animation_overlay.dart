@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/gift.dart';
+import '../providers/providers.dart';
 
 /// Renders a brief floating animation on the live stream for each new gift.
 ///
@@ -45,9 +46,11 @@ class _GiftAnimationOverlayState extends ConsumerState<GiftAnimationOverlay> {
       final data = change.doc.data();
       if (data == null) continue;
 
-      // Reverse-engineer the gift emoji from the catalog
+      // Reverse-engineer the gift emoji from the live catalog (Firestore
+      // when available, static fallback when not).
       final giftTypeId = (data['giftTypeId'] ?? data['giftId']) as String?;
-      final emoji = GiftType.catalog
+      final catalog = ref.read(giftCatalogProvider);
+      final emoji = catalog
           .where((g) => g.id == giftTypeId)
           .map((g) => g.emoji)
           .firstOrNull ?? '🎁';

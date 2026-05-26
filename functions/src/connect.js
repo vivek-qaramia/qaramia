@@ -18,7 +18,7 @@
  * account exists. `stripeAccountStatus` is updated on each callable to one
  * of: not_started, pending, restricted, active.
  */
-const functions = require('firebase-functions');
+const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 
 const RETURN_URL = 'https://qaramia.com/connect/return';

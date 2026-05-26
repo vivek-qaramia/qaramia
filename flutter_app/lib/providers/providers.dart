@@ -10,6 +10,7 @@ import '../services/stream_service.dart';
 import '../services/video_service.dart';
 import '../services/user_service.dart';
 import '../services/danmaku_service.dart';
+import '../services/gift_catalog_service.dart';
 
 // Services
 final authServiceProvider = Provider((ref) => AuthService());
@@ -17,6 +18,27 @@ final streamServiceProvider = Provider((ref) => StreamService());
 final videoServiceProvider = Provider((ref) => VideoService());
 final userServiceProvider = Provider((ref) => UserService());
 final danmakuServiceProvider = Provider((ref) => DanmakuService());
+final giftCatalogServiceProvider = Provider((ref) => GiftCatalogService());
+
+/// Which bottom-nav tab is currently active. The feed video player watches
+/// this and pauses when the user navigates away from the Home tab so audio
+/// doesn't keep playing in the background. 0=Home, 1=Discover, 2=Live,
+/// 3=Profile (mirrors home_screen.dart's `_tabs` list).
+final homeTabIndexProvider = StateProvider<int>((_) => 0);
+
+/// Live gift catalog. Streams from Firestore so ops can add gifts at
+/// runtime; falls back to the static [GiftType.catalog] when the
+/// collection is empty (pre-seed) or the stream is still loading, so the
+/// UI never shows an empty gift panel.
+final giftCatalogProvider = Provider<List<GiftType>>((ref) {
+  final remote = ref.watch(_remoteGiftCatalogProvider).valueOrNull;
+  if (remote == null || remote.isEmpty) return GiftType.catalog;
+  return remote;
+});
+
+final _remoteGiftCatalogProvider = StreamProvider<List<GiftType>>((ref) {
+  return ref.watch(giftCatalogServiceProvider).watchCatalog();
+});
 
 // Auth state
 final authStateProvider = StreamProvider<User?>((ref) {

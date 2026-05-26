@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/providers.dart';
 import '../feed/feed_screen.dart';
 import '../discover/discover_screen.dart';
 import '../live/live_discovery_screen.dart';
 import '../profile/profile_screen.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -29,7 +30,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       bottomNavigationBar: NavigationBar(
         indicatorColor: const Color(0x33FF7043),
         selectedIndex: _tab,
-        onDestinationSelected: (i) => setState(() => _tab = i),
+        onDestinationSelected: (i) {
+          setState(() => _tab = i);
+          // Publish the active tab so off-tab screens (like the feed video
+          // player) can pause themselves while not visible.
+          ref.read(homeTabIndexProvider.notifier).state = i;
+        },
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),

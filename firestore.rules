@@ -84,6 +84,16 @@ service cloud.firestore {
       }
     }
 
+    // Gift catalog — public read so any signed-in (or signed-out) client can
+    // render gift panels. No client-side writes; catalog edits go through an
+    // admin tool (currently: edit docs directly in the Firebase Console;
+    // future: a proper admin UI that uses an admin-claim-gated Cloud
+    // Function).
+    match /giftCatalog/{giftId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // Live streams — public read so discovery page works without signing in
     match /streams/{streamId} {
       allow read: if true;

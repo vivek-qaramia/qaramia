@@ -1,4 +1,4 @@
-const functions = require('firebase-functions');
+const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const { RtcTokenBuilder, RtcRole } = require('agora-token');
 
@@ -13,6 +13,11 @@ exports.validateGooglePurchase = iap.validateGooglePurchase;
 const connect = require('./connect');
 exports.createConnectAccount        = connect.createConnectAccount;
 exports.refreshConnectOnboardingLink = connect.refreshConnectOnboardingLink;
+
+// Gift catalog seeding (idempotent rewrite of giftCatalog/* from the
+// canonical list in giftCatalog.js).
+const giftCatalog = require('./giftCatalog');
+exports.seedGiftCatalog = giftCatalog.seedGiftCatalog;
 
 // Generate a short-lived Agora RTC token for a channel.
 // Called by both Flutter and Next.js clients before joining a stream.
