@@ -1,5 +1,29 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// An emoji sticker shown over the video between [startMs] and [endMs].
+/// Renders as a large centred glyph (80px) so it's visible at a glance.
+/// Position-on-frame and per-sticker scale are out of scope for v1.
+class StickerOverlay {
+  final String emoji;
+  final double startMs;
+  final double endMs;
+  const StickerOverlay({
+    required this.emoji,
+    required this.startMs,
+    required this.endMs,
+  });
+  Map<String, dynamic> toJson() => {
+        'emoji': emoji,
+        'startMs': startMs,
+        'endMs': endMs,
+      };
+  factory StickerOverlay.fromJson(Map<String, dynamic> json) => StickerOverlay(
+        emoji: json['emoji'] as String,
+        startMs: (json['startMs'] as num).toDouble(),
+        endMs: (json['endMs'] as num).toDouble(),
+      );
+}
+
 /// A text overlay shown over the video between [startMs] and [endMs].
 /// Position is centered for v1 (no per-overlay position/colour/size). Text
 /// renders above all visual effects so it stays crisp regardless of blur,
@@ -74,6 +98,8 @@ class Video {
   final double vignetteIntensity;
   // Zero or more text overlays, each visible during its own time window.
   final List<TextOverlay> textOverlays;
+  // Emoji stickers shown over the video at their respective time windows.
+  final List<StickerOverlay> stickers;
   final DateTime createdAt;
 
   const Video({
@@ -95,6 +121,7 @@ class Video {
     this.blurAmount = 0,
     this.vignetteIntensity = 0,
     this.textOverlays = const [],
+    this.stickers = const [],
     required this.createdAt,
   });
 
@@ -143,6 +170,10 @@ class Video {
               ?.map((e) => TextOverlay.fromJson(Map<String, dynamic>.from(e as Map)))
               .toList() ??
           const [],
+      stickers: (json['stickers'] as List?)
+              ?.map((e) => StickerOverlay.fromJson(Map<String, dynamic>.from(e as Map)))
+              .toList() ??
+          const [],
       createdAt: (json['createdAt'] as Timestamp).toDate(),
     );
   }
@@ -166,6 +197,7 @@ class Video {
         'blurAmount': blurAmount,
         'vignetteIntensity': vignetteIntensity,
         'textOverlays': textOverlays.map((t) => t.toJson()).toList(),
+        'stickers': stickers.map((s) => s.toJson()).toList(),
         'createdAt': Timestamp.fromDate(createdAt),
       };
 }

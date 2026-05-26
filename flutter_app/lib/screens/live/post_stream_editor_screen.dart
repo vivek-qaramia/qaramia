@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 
-import '../../models/video.dart' show TextOverlay, ZoomMarker;
+import '../../models/video.dart' show StickerOverlay, TextOverlay, ZoomMarker;
 import '../../models/video_filter.dart';
 import '../../providers/providers.dart';
 import '../../services/video_trim_service.dart';
@@ -25,6 +25,7 @@ Widget composeVideo({
   required double vignetteIntensity,
   required double positionMs,
   List<TextOverlay> textOverlays = const [],
+  List<StickerOverlay> stickers = const [],
 }) {
   Widget result = player;
 
@@ -71,12 +72,17 @@ Widget composeVideo({
     result = Transform.scale(scale: scale, child: result);
   }
 
-  // Text overlays render OUTSIDE the zoom/blur/filter layers so the text
-  // stays crisp and unaffected — viewers should always be able to read it.
+  // Text and sticker overlays render OUTSIDE the zoom/blur/filter layers
+  // so they stay crisp and unaffected — viewers should always see them
+  // clearly. Stickers are drawn ABOVE text so a sticker visually rests on
+  // top of any concurrent text overlay.
   final visibleTexts = textOverlays
       .where((t) => positionMs >= t.startMs && positionMs <= t.endMs)
       .toList();
-  if (visibleTexts.isNotEmpty) {
+  final visibleStickers = stickers
+      .where((s) => positionMs >= s.startMs && positionMs <= s.endMs)
+      .toList();
+  if (visibleTexts.isNotEmpty || visibleStickers.isNotEmpty) {
     result = Stack(
       fit: StackFit.expand,
       children: [
@@ -103,6 +109,16 @@ Widget composeVideo({
                     ],
                   ),
                 ),
+              ),
+            ),
+          ),
+        for (final s in visibleStickers)
+          IgnorePointer(
+            child: Align(
+              alignment: Alignment.center,
+              child: Text(
+                s.emoji,
+                style: const TextStyle(fontSize: 80),
               ),
             ),
           ),
@@ -170,6 +186,9 @@ class _PostStreamEditorScreenState extends ConsumerState<PostStreamEditorScreen>
   static const double _textDurationMs = 3000;
   final List<TextOverlay> _texts = [];
   final TextEditingController _textInputCtrl = TextEditingController();
+  // Emoji stickers (5e). Same fixed-duration model as text overlays.
+  static const double _stickerDurationMs = 3000;
+  final List<StickerOverlay> _stickers = [];
   // Which effect's controls are currently expanded under the tabs. null = no
   // panel is open. Tapping the same tab again collapses it.
   String? _activeEffect;
@@ -306,6 +325,18 @@ class _PostStreamEditorScreenState extends ConsumerState<PostStreamEditorScreen>
           ));
         }
       }
+      final publishedStickers = <StickerOverlay>[];
+      for (final s in _stickers) {
+        final shiftedStart = (s.startMs - _startMs).clamp(0.0, length);
+        final shiftedEnd = (s.endMs - _startMs).clamp(0.0, length);
+        if (shiftedEnd > shiftedStart) {
+          publishedStickers.add(StickerOverlay(
+            emoji: s.emoji,
+            startMs: shiftedStart,
+            endMs: shiftedEnd,
+          ));
+        }
+      }
 
       await VideoUploadService().uploadAndPublish(
         file: fileToUpload,
@@ -318,6 +349,7 @@ class _PostStreamEditorScreenState extends ConsumerState<PostStreamEditorScreen>
         blurAmount: _blurAmount,
         vignetteIntensity: _vignetteIntensity,
         textOverlays: publishedTexts,
+        stickers: publishedStickers,
         onProgress: (p) {
           if (mounted) setState(() => _uploadProgress = p);
         },
@@ -363,6 +395,7 @@ class _PostStreamEditorScreenState extends ConsumerState<PostStreamEditorScreen>
           blurAmount: _blurAmount,
           vignetteIntensity: _vignetteIntensity,
           textOverlays: _texts,
+          stickers: _stickers,
           positionMs: value.position.inMilliseconds.toDouble(),
         );
       },
@@ -431,6 +464,7 @@ class _PostStreamEditorScreenState extends ConsumerState<PostStreamEditorScreen>
                           blurActive: _blurAmount > 0,
                           vignetteActive: _vignetteIntensity > 0,
                           textActive: _texts.isNotEmpty,
+                          stickerActive: _stickers.isNotEmpty,
                           // Tap the same tab to collapse, otherwise switch
                           // to the chosen one.
                           onTap: (id) => setState(() =>
@@ -499,6 +533,22 @@ class _PostStreamEditorScreenState extends ConsumerState<PostStreamEditorScreen>
                               });
                             },
                             onRemove: (i) => setState(() => _texts.removeAt(i)),
+                          )
+                        else if (_activeEffect == 'sticker')
+                          _StickerList(
+                            controller: _ctrl,
+                            stickers: _stickers,
+                            onAdd: (emoji) {
+                              setState(() {
+                                _stickers.add(StickerOverlay(
+                                  emoji: emoji,
+                                  startMs: _ctrl.value.position.inMilliseconds.toDouble(),
+                                  endMs: _ctrl.value.position.inMilliseconds.toDouble() + _stickerDurationMs,
+                                ));
+                                _stickers.sort((a, b) => a.startMs.compareTo(b.startMs));
+                              });
+                            },
+                            onRemove: (i) => setState(() => _stickers.removeAt(i)),
                           ),
                         Container(
                           color: Colors.black,
@@ -813,6 +863,7 @@ class _EffectsTabs extends StatelessWidget {
   final bool blurActive;
   final bool vignetteActive;
   final bool textActive;
+  final bool stickerActive;
   final ValueChanged<String> onTap;
 
   const _EffectsTabs({
@@ -821,6 +872,7 @@ class _EffectsTabs extends StatelessWidget {
     required this.blurActive,
     required this.vignetteActive,
     required this.textActive,
+    required this.stickerActive,
     required this.onTap,
   });
 
@@ -869,6 +921,15 @@ class _EffectsTabs extends StatelessWidget {
               icon: Icons.title,
               selected: activeEffect == 'text',
               applied: textActive,
+              onTap: onTap,
+            ),
+            const SizedBox(width: 8),
+            _Tab(
+              id: 'sticker',
+              label: 'Sticker',
+              icon: Icons.emoji_emotions_outlined,
+              selected: activeEffect == 'sticker',
+              applied: stickerActive,
               onTap: onTap,
             ),
           ],
@@ -1092,6 +1153,117 @@ class _TextList extends StatelessWidget {
                             '"${t.text}"  ·  ${_format(t.startMs)}–${_format(t.endMs)}',
                             style: const TextStyle(color: Colors.white, fontSize: 12),
                             overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 14, color: Colors.white70),
+                          onPressed: () => onRemove(i),
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Emoji-sticker panel: a horizontal palette of common emojis followed by
+/// a list of placed stickers. Tap an emoji in the palette to drop it at
+/// the current playhead with a fixed 3-second window.
+class _StickerList extends StatelessWidget {
+  final VideoPlayerController controller;
+  final List<StickerOverlay> stickers;
+  final ValueChanged<String> onAdd;
+  final void Function(int index) onRemove;
+
+  const _StickerList({
+    required this.controller,
+    required this.stickers,
+    required this.onAdd,
+    required this.onRemove,
+  });
+
+  // Small curated palette. The user can't pick arbitrary emojis in v1 —
+  // a full picker would mean integrating a third-party emoji-keyboard
+  // plugin. These cover the common reaction set.
+  static const _palette = [
+    '😀', '😂', '🥰', '😍', '🤩', '😎', '🤔', '😱',
+    '👍', '👏', '🙏', '🔥', '💯', '⭐', '✨', '🎉',
+    '❤️', '💕', '💔', '🚀', '👀', '💩', '🤡', '🐐',
+  ];
+
+  static String _format(double ms) {
+    final total = Duration(milliseconds: ms.toInt());
+    return '${total.inMinutes}:${(total.inSeconds % 60).toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.black,
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ValueListenableBuilder<VideoPlayerValue>(
+            valueListenable: controller,
+            builder: (_, value, _) => Text(
+              'Tap to add at ${_format(value.position.inMilliseconds.toDouble())}',
+              style: const TextStyle(color: Colors.white54, fontSize: 11),
+            ),
+          ),
+          SizedBox(
+            height: 40,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              itemCount: _palette.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 6),
+              itemBuilder: (_, i) {
+                final emoji = _palette[i];
+                return GestureDetector(
+                  onTap: () => onAdd(emoji),
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.white12,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white24),
+                    ),
+                    child: Text(emoji, style: const TextStyle(fontSize: 20)),
+                  ),
+                );
+              },
+            ),
+          ),
+          if (stickers.isNotEmpty)
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 100),
+              child: ListView.builder(
+                shrinkWrap: true,
+                padding: const EdgeInsets.only(top: 4),
+                itemCount: stickers.length,
+                itemBuilder: (_, i) {
+                  final s = stickers[i];
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Row(
+                      children: [
+                        Text(s.emoji, style: const TextStyle(fontSize: 18)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '${_format(s.startMs)}–${_format(s.endMs)}',
+                            style: const TextStyle(color: Colors.white70, fontSize: 12),
                           ),
                         ),
                         IconButton(

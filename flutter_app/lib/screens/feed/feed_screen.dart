@@ -105,6 +105,7 @@ class _VideoCardState extends ConsumerState<VideoCard> {
                     blurAmount: widget.video.blurAmount,
                     vignetteIntensity: widget.video.vignetteIntensity,
                     textOverlays: widget.video.textOverlays,
+                    stickers: widget.video.stickers,
                     positionMs: value.position.inMilliseconds.toDouble(),
                   );
                 },
