@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 
-import '../../models/video.dart' show ZoomMarker;
+import '../../models/video.dart' show TextOverlay, ZoomMarker;
 import '../../models/video_filter.dart';
 import '../../providers/providers.dart';
 import '../../services/video_trim_service.dart';
@@ -24,6 +24,7 @@ Widget composeVideo({
   required double blurAmount,
   required double vignetteIntensity,
   required double positionMs,
+  List<TextOverlay> textOverlays = const [],
 }) {
   Widget result = player;
 
@@ -68,6 +69,45 @@ Widget composeVideo({
   final scale = scaleAtPosition(positionMs: positionMs, zooms: zooms);
   if (scale != 1.0) {
     result = Transform.scale(scale: scale, child: result);
+  }
+
+  // Text overlays render OUTSIDE the zoom/blur/filter layers so the text
+  // stays crisp and unaffected — viewers should always be able to read it.
+  final visibleTexts = textOverlays
+      .where((t) => positionMs >= t.startMs && positionMs <= t.endMs)
+      .toList();
+  if (visibleTexts.isNotEmpty) {
+    result = Stack(
+      fit: StackFit.expand,
+      children: [
+        result,
+        for (final t in visibleTexts)
+          IgnorePointer(
+            child: Align(
+              alignment: Alignment.center,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  t.text,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    shadows: [
+                      Shadow(
+                        offset: Offset(0, 1.5),
+                        blurRadius: 4,
+                        color: Colors.black87,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
   }
 
   return result;
@@ -125,6 +165,11 @@ class _PostStreamEditorScreenState extends ConsumerState<PostStreamEditorScreen>
   // Effects (5c): blur sigma + vignette opacity. Both 0 = off.
   double _blurAmount = 0;
   double _vignetteIntensity = 0;
+  // Text overlays (5d). Each one is centred over the video for a fixed
+  // 3-second window starting at the time the user added it.
+  static const double _textDurationMs = 3000;
+  final List<TextOverlay> _texts = [];
+  final TextEditingController _textInputCtrl = TextEditingController();
   // Which effect's controls are currently expanded under the tabs. null = no
   // panel is open. Tapping the same tab again collapses it.
   String? _activeEffect;
@@ -163,6 +208,7 @@ class _PostStreamEditorScreenState extends ConsumerState<PostStreamEditorScreen>
   void dispose() {
     _ctrl.removeListener(_onTick);
     _ctrl.dispose();
+    _textInputCtrl.dispose();
     super.dispose();
   }
 
@@ -244,6 +290,23 @@ class _PostStreamEditorScreenState extends ConsumerState<PostStreamEditorScreen>
         }
       }
 
+      // Translate text overlays the same way as zooms: shift by -_startMs
+      // and drop any whose window leaves the trimmed range. Allow partial
+      // overlaps to be clamped to the visible window so a text that starts
+      // before the trim still shows from the trim point onward.
+      final publishedTexts = <TextOverlay>[];
+      for (final t in _texts) {
+        final shiftedStart = (t.startMs - _startMs).clamp(0.0, length);
+        final shiftedEnd = (t.endMs - _startMs).clamp(0.0, length);
+        if (shiftedEnd > shiftedStart) {
+          publishedTexts.add(TextOverlay(
+            text: t.text,
+            startMs: shiftedStart,
+            endMs: shiftedEnd,
+          ));
+        }
+      }
+
       await VideoUploadService().uploadAndPublish(
         file: fileToUpload,
         authorUid: user.uid,
@@ -254,6 +317,7 @@ class _PostStreamEditorScreenState extends ConsumerState<PostStreamEditorScreen>
         zooms: publishedZooms,
         blurAmount: _blurAmount,
         vignetteIntensity: _vignetteIntensity,
+        textOverlays: publishedTexts,
         onProgress: (p) {
           if (mounted) setState(() => _uploadProgress = p);
         },
@@ -298,6 +362,7 @@ class _PostStreamEditorScreenState extends ConsumerState<PostStreamEditorScreen>
           zooms: _zooms,
           blurAmount: _blurAmount,
           vignetteIntensity: _vignetteIntensity,
+          textOverlays: _texts,
           positionMs: value.position.inMilliseconds.toDouble(),
         );
       },
@@ -365,6 +430,7 @@ class _PostStreamEditorScreenState extends ConsumerState<PostStreamEditorScreen>
                           zoomActive: _zooms.isNotEmpty,
                           blurActive: _blurAmount > 0,
                           vignetteActive: _vignetteIntensity > 0,
+                          textActive: _texts.isNotEmpty,
                           // Tap the same tab to collapse, otherwise switch
                           // to the chosen one.
                           onTap: (id) => setState(() =>
@@ -413,6 +479,26 @@ class _PostStreamEditorScreenState extends ConsumerState<PostStreamEditorScreen>
                                 : 'off',
                             onChanged: (v) =>
                                 setState(() => _vignetteIntensity = v),
+                          )
+                        else if (_activeEffect == 'text')
+                          _TextList(
+                            controller: _ctrl,
+                            inputController: _textInputCtrl,
+                            texts: _texts,
+                            onAdd: () {
+                              final text = _textInputCtrl.text.trim();
+                              if (text.isEmpty) return;
+                              setState(() {
+                                _texts.add(TextOverlay(
+                                  text: text,
+                                  startMs: _ctrl.value.position.inMilliseconds.toDouble(),
+                                  endMs: _ctrl.value.position.inMilliseconds.toDouble() + _textDurationMs,
+                                ));
+                                _texts.sort((a, b) => a.startMs.compareTo(b.startMs));
+                                _textInputCtrl.clear();
+                              });
+                            },
+                            onRemove: (i) => setState(() => _texts.removeAt(i)),
                           ),
                         Container(
                           color: Colors.black,
@@ -726,6 +812,7 @@ class _EffectsTabs extends StatelessWidget {
   final bool zoomActive;
   final bool blurActive;
   final bool vignetteActive;
+  final bool textActive;
   final ValueChanged<String> onTap;
 
   const _EffectsTabs({
@@ -733,43 +820,59 @@ class _EffectsTabs extends StatelessWidget {
     required this.zoomActive,
     required this.blurActive,
     required this.vignetteActive,
+    required this.textActive,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    // The tab list scrolls horizontally so a fifth/sixth tab (stickers in
+    // Phase 5e, etc.) can be added without breaking layout on narrow screens.
     return Container(
       color: Colors.black,
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-      child: Row(
-        children: [
-          _Tab(
-            id: 'zoom',
-            label: 'Zoom',
-            icon: Icons.zoom_in,
-            selected: activeEffect == 'zoom',
-            applied: zoomActive,
-            onTap: onTap,
-          ),
-          const SizedBox(width: 8),
-          _Tab(
-            id: 'blur',
-            label: 'Blur',
-            icon: Icons.blur_on,
-            selected: activeEffect == 'blur',
-            applied: blurActive,
-            onTap: onTap,
-          ),
-          const SizedBox(width: 8),
-          _Tab(
-            id: 'vignette',
-            label: 'Vignette',
-            icon: Icons.vignette,
-            selected: activeEffect == 'vignette',
-            applied: vignetteActive,
-            onTap: onTap,
-          ),
-        ],
+      child: SizedBox(
+        height: 36,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          children: [
+            _Tab(
+              id: 'zoom',
+              label: 'Zoom',
+              icon: Icons.zoom_in,
+              selected: activeEffect == 'zoom',
+              applied: zoomActive,
+              onTap: onTap,
+            ),
+            const SizedBox(width: 8),
+            _Tab(
+              id: 'blur',
+              label: 'Blur',
+              icon: Icons.blur_on,
+              selected: activeEffect == 'blur',
+              applied: blurActive,
+              onTap: onTap,
+            ),
+            const SizedBox(width: 8),
+            _Tab(
+              id: 'vignette',
+              label: 'Vignette',
+              icon: Icons.vignette,
+              selected: activeEffect == 'vignette',
+              applied: vignetteActive,
+              onTap: onTap,
+            ),
+            const SizedBox(width: 8),
+            _Tab(
+              id: 'text',
+              label: 'Text',
+              icon: Icons.title,
+              selected: activeEffect == 'text',
+              applied: textActive,
+              onTap: onTap,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -892,6 +995,118 @@ class _SingleEffect extends StatelessWidget {
               style: const TextStyle(color: Colors.white54, fontSize: 11),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Text-overlay panel. Input field on top, "Add at X:XX" button driven by
+/// the live playhead, then a vertically-scrollable list of placed overlays
+/// (each with text preview + time range + remove). Style is locked for v1:
+/// large bold white text, centred, 3-second duration.
+class _TextList extends StatelessWidget {
+  final VideoPlayerController controller;
+  final TextEditingController inputController;
+  final List<TextOverlay> texts;
+  final VoidCallback onAdd;
+  final void Function(int index) onRemove;
+
+  const _TextList({
+    required this.controller,
+    required this.inputController,
+    required this.texts,
+    required this.onAdd,
+    required this.onRemove,
+  });
+
+  static String _format(double ms) {
+    final total = Duration(milliseconds: ms.toInt());
+    return '${total.inMinutes}:${(total.inSeconds % 60).toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.black,
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: inputController,
+                  style: const TextStyle(color: Colors.white),
+                  cursorColor: QBrand.primary,
+                  decoration: InputDecoration(
+                    hintText: 'Type text',
+                    hintStyle: const TextStyle(color: Colors.white38),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(999),
+                      borderSide: const BorderSide(color: Colors.white24),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(999),
+                      borderSide: const BorderSide(color: QBrand.primary),
+                    ),
+                  ),
+                  onSubmitted: (_) => onAdd(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              ValueListenableBuilder<VideoPlayerValue>(
+                valueListenable: controller,
+                builder: (_, value, _) => OutlinedButton(
+                  onPressed: onAdd,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white24),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  child: Text('Add at ${_format(value.position.inMilliseconds.toDouble())}'),
+                ),
+              ),
+            ],
+          ),
+          if (texts.isNotEmpty)
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 100),
+              child: ListView.builder(
+                shrinkWrap: true,
+                padding: const EdgeInsets.only(top: 6),
+                itemCount: texts.length,
+                itemBuilder: (_, i) {
+                  final t = texts[i];
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.title, color: Colors.white, size: 14),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            '"${t.text}"  ·  ${_format(t.startMs)}–${_format(t.endMs)}',
+                            style: const TextStyle(color: Colors.white, fontSize: 12),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 14, color: Colors.white70),
+                          onPressed: () => onRemove(i),
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
         ],
       ),
     );

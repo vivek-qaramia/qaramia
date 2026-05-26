@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:uuid/uuid.dart';
 
-import '../models/video.dart' show ZoomMarker;
+import '../models/video.dart' show TextOverlay, ZoomMarker;
 
 /// Uploads a trimmed mp4 to Firebase Storage and writes the matching
 /// `videos/{id}` Firestore doc that the home feed reads from.
@@ -28,6 +28,7 @@ class VideoUploadService {
     List<ZoomMarker> zooms = const [],
     double blurAmount = 0,
     double vignetteIntensity = 0,
+    List<TextOverlay> textOverlays = const [],
     void Function(double progress)? onProgress,
   }) async {
     final videoId = _uuid.v4();
@@ -61,6 +62,7 @@ class VideoUploadService {
       'zooms': zooms.map((z) => z.toJson()).toList(),
       'blurAmount': blurAmount,
       'vignetteIntensity': vignetteIntensity,
+      'textOverlays': textOverlays.map((t) => t.toJson()).toList(),
       'createdAt': FieldValue.serverTimestamp(),
     });
 

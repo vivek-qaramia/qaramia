@@ -1,5 +1,30 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// A text overlay shown over the video between [startMs] and [endMs].
+/// Position is centered for v1 (no per-overlay position/colour/size). Text
+/// renders above all visual effects so it stays crisp regardless of blur,
+/// colour grading, or zoom.
+class TextOverlay {
+  final String text;
+  final double startMs;
+  final double endMs;
+  const TextOverlay({
+    required this.text,
+    required this.startMs,
+    required this.endMs,
+  });
+  Map<String, dynamic> toJson() => {
+        'text': text,
+        'startMs': startMs,
+        'endMs': endMs,
+      };
+  factory TextOverlay.fromJson(Map<String, dynamic> json) => TextOverlay(
+        text: json['text'] as String,
+        startMs: (json['startMs'] as num).toDouble(),
+        endMs: (json['endMs'] as num).toDouble(),
+      );
+}
+
 /// A single zoom-at-point marker. The video animates a Transform.scale
 /// from 1.0 → [scale] and back over [durationMs], starting at [timeMs]
 /// (measured from the start of the published file).
@@ -47,6 +72,8 @@ class Video {
   final double blurAmount;
   // Radial-vignette opacity at the corners. 0 = no vignette, 1 = solid.
   final double vignetteIntensity;
+  // Zero or more text overlays, each visible during its own time window.
+  final List<TextOverlay> textOverlays;
   final DateTime createdAt;
 
   const Video({
@@ -67,6 +94,7 @@ class Video {
     this.zooms = const [],
     this.blurAmount = 0,
     this.vignetteIntensity = 0,
+    this.textOverlays = const [],
     required this.createdAt,
   });
 
@@ -111,6 +139,10 @@ class Video {
       zooms: zooms,
       blurAmount: (json['blurAmount'] as num?)?.toDouble() ?? 0,
       vignetteIntensity: (json['vignetteIntensity'] as num?)?.toDouble() ?? 0,
+      textOverlays: (json['textOverlays'] as List?)
+              ?.map((e) => TextOverlay.fromJson(Map<String, dynamic>.from(e as Map)))
+              .toList() ??
+          const [],
       createdAt: (json['createdAt'] as Timestamp).toDate(),
     );
   }
@@ -133,6 +165,7 @@ class Video {
         'zooms': zooms.map((z) => z.toJson()).toList(),
         'blurAmount': blurAmount,
         'vignetteIntensity': vignetteIntensity,
+        'textOverlays': textOverlays.map((t) => t.toJson()).toList(),
         'createdAt': Timestamp.fromDate(createdAt),
       };
 }
