@@ -31,6 +31,11 @@ dependencies:
   # so we use Android's MediaProjection / iOS ReplayKit via this plugin instead.
   flutter_screen_recording: ^2.0.25
 
+  # Post-stream editor processing — trim (Phase 5a) and later baked-in
+  # effects. Active fork of the discontinued ffmpeg_kit_flutter; the original
+  # had its binaries removed from Maven in early 2025.
+  ffmpeg_kit_flutter_new: ^3.2.0
+
   # Video playback
   video_player: ^2.9.2
   chewie: ^1.8.5

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 import '../../models/video.dart';
-import '../../models/video_filter.dart';
 import '../../providers/providers.dart';
+import '../../screens/live/post_stream_editor_screen.dart' show composeVideo;
 import '../../theme/brand.dart';
 
 class FeedScreen extends ConsumerWidget {
@@ -95,15 +95,19 @@ class _VideoCardState extends ConsumerState<VideoCard> {
             onTap: () => _ctrl.value.isPlaying ? _ctrl.pause() : _ctrl.play(),
             child: AspectRatio(
               aspectRatio: _ctrl.value.aspectRatio,
-              child: () {
-                final filter = VideoFilter.byId(widget.video.filterId);
-                final player = VideoPlayer(_ctrl);
-                if (!filter.hasColorOverlay) return player;
-                return ColorFiltered(
-                  colorFilter: ColorFilter.matrix(filter.colorMatrix!),
-                  child: player,
-                );
-              }(),
+              child: ValueListenableBuilder<VideoPlayerValue>(
+                valueListenable: _ctrl,
+                builder: (_, value, _) {
+                  return composeVideo(
+                    player: VideoPlayer(_ctrl),
+                    filterId: widget.video.filterId,
+                    zooms: widget.video.zooms,
+                    blurAmount: widget.video.blurAmount,
+                    vignetteIntensity: widget.video.vignetteIntensity,
+                    positionMs: value.position.inMilliseconds.toDouble(),
+                  );
+                },
+              ),
             ),
           )
         else
