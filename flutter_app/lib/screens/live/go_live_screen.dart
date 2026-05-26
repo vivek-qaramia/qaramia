@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:flutter_screen_recording/flutter_screen_recording.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/live_stream.dart';
 import '../../providers/providers.dart';
 import '../../services/cohost_service.dart';
@@ -42,9 +43,33 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   RtcEngine? _engine;
   bool _isRecording = false;
   String? _recordingPath;
+  // When true, the broadcast is screen-recorded so the host can edit + publish
+  // a clip after End. Default ON, persisted to SharedPreferences. Toggling
+  // off skips _startRecording entirely so Android's MediaProjection consent
+  // dialog never appears.
+  static const _recordPrefKey = 'qaramia_record_stream_enabled';
+  bool _recordEnabled = true;
   final _cohostService = CoHostService();
 
   static const _categories = ['General', 'Gaming', 'Music', 'IRL', 'Sports', 'Cooking', 'Education'];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRecordPref();
+  }
+
+  Future<void> _loadRecordPref() async {
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getBool(_recordPrefKey);
+    if (stored != null && mounted) setState(() => _recordEnabled = stored);
+  }
+
+  Future<void> _setRecordEnabled(bool value) async {
+    setState(() => _recordEnabled = value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_recordPrefKey, value);
+  }
 
   @override
   void dispose() {
@@ -138,7 +163,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         RtcEngineEventHandler(
           onJoinChannelSuccess: (RtcConnection conn, int elapsed) {
             debugPrint('[GoLive] onJoinChannelSuccess uid=${conn.localUid} elapsed=${elapsed}ms');
-            if (mounted && !_isRecording) _startRecording(stream);
+            // Only fire the screen-recording flow if the host opted in. With
+            // it off, no MediaProjection consent dialog appears and no
+            // post-stream editor will open.
+            if (mounted && _recordEnabled && !_isRecording) {
+              _startRecording(stream);
+            }
           },
         ),
       );
@@ -209,21 +239,14 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     );
   }
 
-  /// Start screen recording of the live stream so the host can edit + publish
-  /// after ending. We use Android MediaProjection (via flutter_screen_recording)
-  /// rather than Agora's MediaRecorder because the latter returns -4
-  /// NOT_SUPPORTED on this SDK build. The plugin will trigger a one-time
-  /// system permission dialog before capture starts.
+  /// Records the live stream via Android MediaProjection (Plan B). Agora's
+  /// native MediaRecorder returns -4 NOT_SUPPORTED on this Samsung device
+  /// across SDK versions tested, so we fall back to screen capture even
+  /// though it triggers a per-session consent dialog the user has to
+  /// accept. The trade-off: recording works on every device, at the cost
+  /// of the OS-mandated prompt.
   Future<void> _startRecording(LiveStream stream) async {
     try {
-      // The plugin writes the file itself (Android Movies dir on Android);
-      // we just give it a stable name based on the stream id. Use
-      // startRecordScreenAndAudio so the mic is captured alongside the
-      // screen — without this the published video is silent.
-      // Caveat: Agora is also reading the mic to encode the live broadcast.
-      // On some devices Android's AudioFlinger refuses a second mic
-      // consumer; if that happens, the recording will simply fail to start
-      // and we keep the broadcast working without a recording.
       final filename = 'qaramia_${stream.id}';
       final started = await FlutterScreenRecording.startRecordScreenAndAudio(filename);
       if (!started) {
@@ -460,6 +483,44 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 ],
               ),
             ),
+            const SizedBox(height: 12),
+
+            // Record-stream toggle. When on, screen recording starts after
+            // join so the host can edit + publish a clip from the End flow.
+            // When off, no MediaProjection consent dialog appears at all.
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: _recordEnabled ? QBrand.primaryDim : QBrand.cardAlt,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                    color: _recordEnabled ? QBrand.primary : QBrand.hairline),
+              ),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('🎬 Save stream for editing',
+                            style: TextStyle(
+                                color: QBrand.fg,
+                                fontWeight: FontWeight.bold)),
+                        SizedBox(height: 2),
+                        Text(
+                            'Records the stream so you can trim, filter, and publish a clip after End. Android will ask once per stream.',
+                            style: TextStyle(color: QBrand.fgMute, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                  Switch(
+                    value: _recordEnabled,
+                    onChanged: _setRecordEnabled,
+                    activeThumbColor: QBrand.primary,
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 20),
 
             // Filters
@@ -666,11 +727,11 @@ class _BroadcastViewState extends ConsumerState<_BroadcastView> {
               )).toList(),
             ),
           ),
-          // Host-side scan button (bottom right)
-          Positioned(
-            right: 16, bottom: 24,
-            child: BroadcastScanButton(engine: engine, streamId: stream.id),
-          ),
+          // All host-side action buttons stack on the right edge so they
+          // stay within the recorded frame (screen-recorder captures the
+          // whole screen, so anything close to the bottom or top edge is
+          // visually clipped on small phones). Order: CC → Filter → Scan.
+          //
           // Live captions toggle (top right, below the End/Invite row).
           // Pushed to y=120 because devices with display cutouts have a
           // SafeArea > 40px, which made the previous top:64 collide with
@@ -679,13 +740,16 @@ class _BroadcastViewState extends ConsumerState<_BroadcastView> {
             right: 16, top: 120,
             child: CaptionsController(streamId: stream.id),
           ),
-          // Filter picker chip (top right, stacked under the CC pill).
           Positioned(
             right: 16, top: 196,
             child: FilterToggleButton(
               currentFilterId: filterId,
               onFilterChange: onFilterChange,
             ),
+          ),
+          Positioned(
+            right: 16, top: 272,
+            child: BroadcastScanButton(engine: engine, streamId: stream.id),
           ),
           // Session earnings card (left side, above the chat overlay)
           Positioned(

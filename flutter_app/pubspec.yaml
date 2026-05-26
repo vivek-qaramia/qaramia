@@ -24,11 +24,18 @@ dependencies:
   riverpod_annotation: ^2.6.1
 
   # Live streaming
-  agora_rtc_engine: ^6.3.2
+  # Pinned at 6.5.3 (not 6.5.4+) because flutter_screen_recording's
+  # transitive `js` dep is incompatible with Agora 6.5.4+. Tested bumping to
+  # 6.5.4 hoping it would fix the MediaRecorder -4 NOT_SUPPORTED on this
+  # Samsung device — it did not. Reverted; we keep the screen-recording
+  # fallback because the device can't use Agora's native MediaRecorder.
+  agora_rtc_engine: ^6.5.3
 
   # Screen recording of the live stream for the post-stream editor.
-  # Agora's built-in MediaRecorder returns -4 NOT_SUPPORTED on this SDK build,
-  # so we use Android's MediaProjection / iOS ReplayKit via this plugin instead.
+  # Agora's built-in MediaRecorder returns -4 NOT_SUPPORTED on this device
+  # (tried 6.3.2, 6.5.3 and 6.5.4 — all rejected). We use Android's
+  # MediaProjection via this plugin instead. Trade-off is the per-session
+  # consent dialog the OS requires.
   flutter_screen_recording: ^2.0.25
 
   # Post-stream editor processing — trim (Phase 5a) and later baked-in
