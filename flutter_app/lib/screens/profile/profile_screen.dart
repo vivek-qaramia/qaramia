@@ -5,6 +5,7 @@ import '../../providers/providers.dart';
 import '../../models/app_user.dart';
 import '../../models/video.dart';
 import '../../theme/brand.dart';
+import '../feed/feed_screen.dart' show VideoCard;
 import '../studio/ads_screen.dart';
 import '../../widgets/wallet_badge.dart';
 
@@ -251,7 +252,19 @@ class _VideoGrid extends StatelessWidget {
         (context, i) {
           final video = videos[i];
           return GestureDetector(
-            onTap: () {},
+            onTap: () {
+              // Open the tapped video full-screen using the same VideoCard
+              // widget the home feed renders, so all editor effects (zoom,
+              // blur, vignette, text, stickers, color filter) come along.
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => Scaffold(
+                    backgroundColor: Colors.black,
+                    body: SafeArea(child: VideoCard(video: video)),
+                  ),
+                ),
+              );
+            },
             child: video.thumbnailUrl != null
                 ? CachedNetworkImage(imageUrl: video.thumbnailUrl!, fit: BoxFit.cover)
                 : Container(

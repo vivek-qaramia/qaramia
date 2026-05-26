@@ -68,6 +68,37 @@ class StreamService {
     await _db.collection('users').doc(hostUid).update({'isLive': false});
   }
 
+  /// End every `status: 'live'` stream owned by [hostUid]. Called at app
+  /// startup to reap docs orphaned by crashes / force-quits / hot-restarts
+  /// where the proper End flow never ran. Best-effort: failures are logged
+  /// but don't propagate, so a flaky network at launch doesn't block the UI.
+  Future<int> endStaleStreams(String hostUid) async {
+    try {
+      final snap = await _db
+          .collection('streams')
+          .where('hostUid', isEqualTo: hostUid)
+          .where('status', isEqualTo: 'live')
+          .get();
+      if (snap.docs.isEmpty) return 0;
+      final batch = _db.batch();
+      for (final doc in snap.docs) {
+        batch.update(doc.reference, {
+          'status': StreamStatus.ended.name,
+          'endedAt': FieldValue.serverTimestamp(),
+        });
+      }
+      batch.update(
+        _db.collection('users').doc(hostUid),
+        {'isLive': false},
+      );
+      await batch.commit();
+      return snap.docs.length;
+    } catch (e) {
+      // Don't crash startup over this — it'll get tried again next launch.
+      return 0;
+    }
+  }
+
   Future<void> updateViewerCount(String streamId, int delta) async {
     await _db.collection('streams').doc(streamId).update({
       'viewerCount': FieldValue.increment(delta),

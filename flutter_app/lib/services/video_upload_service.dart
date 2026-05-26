@@ -5,6 +5,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/video.dart' show StickerOverlay, TextOverlay, ZoomMarker;
+import 'video_trim_service.dart';
 
 /// Uploads a trimmed mp4 to Firebase Storage and writes the matching
 /// `videos/{id}` Firestore doc that the home feed reads from.
@@ -46,12 +47,32 @@ class VideoUploadService {
     await task;
     final videoUrl = await ref.getDownloadURL();
 
+    // Best-effort thumbnail. Failures don't block publish — the Profile grid
+    // falls back to a placeholder icon when thumbnailUrl is null.
+    String? thumbnailUrl;
+    File? thumbFile;
+    try {
+      final thumbPath = await VideoTrimService().generateThumbnail(
+        inputPath: file.path,
+      );
+      thumbFile = File(thumbPath);
+      final thumbRef = _storage.ref().child('videos/${videoId}_thumb.jpg');
+      await thumbRef.putFile(thumbFile);
+      thumbnailUrl = await thumbRef.getDownloadURL();
+    } catch (_) {
+      // Skip thumbnail; the rest of the publish proceeds normally.
+    } finally {
+      if (thumbFile != null) {
+        try { await thumbFile.delete(); } catch (_) {}
+      }
+    }
+
     await _db.collection('videos').doc(videoId).set({
       'authorUid': authorUid,
       'authorUsername': authorUsername,
       'authorAvatarUrl': authorAvatarUrl,
       'videoUrl': videoUrl,
-      'thumbnailUrl': null,
+      'thumbnailUrl': thumbnailUrl,
       'caption': caption,
       'tags': const <String>[],
       'likeCount': 0,

@@ -46,6 +46,32 @@ class VideoTrimService {
     return outPath;
   }
 
+  /// Extract a single JPEG frame from [inputPath] at [atSec] seconds (default
+  /// 0.5s — slightly past 0 so we skip a possibly-black first frame). Returns
+  /// the output path. Throws on FFmpeg failure.
+  Future<String> generateThumbnail({
+    required String inputPath,
+    double atSec = 0.5,
+  }) async {
+    final tmp = await getTemporaryDirectory();
+    final outPath = '${tmp.path}/thumb_${_uuid.v4()}.jpg';
+    final ss = atSec.toStringAsFixed(2);
+    // -ss before -i is the fast seek path; -frames:v 1 grabs exactly one
+    // frame; -q:v 2 sets JPEG quality (2 = visually lossless-ish).
+    final cmd = '-y -ss $ss -i "$inputPath" -frames:v 1 -q:v 2 "$outPath"';
+    final session = await FFmpegKit.execute(cmd);
+    final code = await session.getReturnCode();
+    if (!ReturnCode.isSuccess(code)) {
+      final logs = await session.getAllLogsAsString();
+      throw Exception('FFmpeg thumbnail failed (code ${code?.getValue()}): $logs');
+    }
+    final out = File(outPath);
+    if (!await out.exists()) {
+      throw Exception('FFmpeg returned success but no thumbnail at $outPath');
+    }
+    return outPath;
+  }
+
   String _hhmmss(Duration d) {
     String two(int n) => n.toString().padLeft(2, '0');
     String three(int n) => n.toString().padLeft(3, '0');

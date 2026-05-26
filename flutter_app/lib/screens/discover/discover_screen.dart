@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../theme/brand.dart';
 import '../../providers/providers.dart';
 import '../../models/app_user.dart';
+import '../../models/live_stream.dart';
 import '../profile/profile_screen.dart';
 
 class DiscoverScreen extends ConsumerStatefulWidget {
@@ -101,7 +102,21 @@ class _UserTile extends StatelessWidget {
 class _TrendingSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final liveStreams = ref.watch(liveStreamsProvider).valueOrNull ?? [];
+    final raw = ref.watch(liveStreamsProvider).valueOrNull ?? [];
+    // Collapse multiple ghost streams from the same host (an "ended" stream
+    // that never updated its status because of a crash or hot-restart) into
+    // one entry. Keep the most-recently-started doc per host so the avatar
+    // routes to the freshest stream when tapped.
+    final byHost = <String, LiveStream>{};
+    for (final s in raw) {
+      final current = byHost[s.hostUid];
+      if (current == null || s.startedAt.isAfter(current.startedAt)) {
+        byHost[s.hostUid] = s;
+      }
+    }
+    final liveStreams = byHost.values.toList()
+      ..sort((a, b) => b.viewerCount.compareTo(a.viewerCount));
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(

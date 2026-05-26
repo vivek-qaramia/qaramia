@@ -39,6 +39,17 @@ class AuthGate extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // When the user transitions from signed-out → signed-in, reap any
+    // streams that previous sessions left in status='live' (crashes, force
+    // quits, hot restarts). Best-effort; the service swallows its own
+    // errors so a flaky network at startup doesn't block the UI.
+    ref.listen(authStateProvider, (prev, next) {
+      final newUid = next.valueOrNull?.uid;
+      if (newUid != null && prev?.valueOrNull?.uid != newUid) {
+        ref.read(streamServiceProvider).endStaleStreams(newUid);
+      }
+    });
+
     final authState = ref.watch(authStateProvider);
     return authState.when(
       loading: () => const Scaffold(
