@@ -68,11 +68,23 @@ class StreamService {
     await _db.collection('users').doc(hostUid).update({'isLive': false});
   }
 
-  /// End every `status: 'live'` stream owned by [hostUid]. Called at app
-  /// startup to reap docs orphaned by crashes / force-quits / hot-restarts
-  /// where the proper End flow never ran. Best-effort: failures are logged
-  /// but don't propagate, so a flaky network at launch doesn't block the UI.
-  Future<int> endStaleStreams(String hostUid) async {
+  /// End every `status: 'live'` stream owned by [hostUid] that was started
+  /// more than [staleAfter] ago. Called at app startup to reap docs orphaned
+  /// by crashes / force-quits / hot-restarts where the proper End flow never
+  /// ran.
+  ///
+  /// The age gate is critical: this runs on EVERY app cold-start (the auth
+  /// listener fires when authState resolves from Loading → Data), and
+  /// without it a host who relaunches the app mid-stream — or who started a
+  /// stream a few seconds before the cleanup callback fires — would have
+  /// their active stream killed.
+  ///
+  /// Best-effort: failures are logged but don't propagate so a flaky
+  /// network at launch doesn't block the UI.
+  Future<int> endStaleStreams(
+    String hostUid, {
+    Duration staleAfter = const Duration(seconds: 60),
+  }) async {
     try {
       final snap = await _db
           .collection('streams')
@@ -80,8 +92,17 @@ class StreamService {
           .where('status', isEqualTo: 'live')
           .get();
       if (snap.docs.isEmpty) return 0;
+
+      final cutoff = DateTime.now().subtract(staleAfter);
+      final stale = snap.docs.where((doc) {
+        final startedAt = (doc.data()['startedAt'] as Timestamp?)?.toDate();
+        // If the doc has no startedAt for some reason, assume it's old.
+        return startedAt == null || startedAt.isBefore(cutoff);
+      }).toList();
+      if (stale.isEmpty) return 0;
+
       final batch = _db.batch();
-      for (final doc in snap.docs) {
+      for (final doc in stale) {
         batch.update(doc.reference, {
           'status': StreamStatus.ended.name,
           'endedAt': FieldValue.serverTimestamp(),
@@ -92,7 +113,7 @@ class StreamService {
         {'isLive': false},
       );
       await batch.commit();
-      return snap.docs.length;
+      return stale.length;
     } catch (e) {
       // Don't crash startup over this — it'll get tried again next launch.
       return 0;

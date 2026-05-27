@@ -7,7 +7,8 @@ import { db, rtdb } from '@/lib/firebase';
 import { doc, updateDoc, increment, collection, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { ref as rtdbRef, push } from 'firebase/database';
 import { useAuthStore } from '@/store/auth-store';
-import { GIFT_CATALOG, GiftType } from '@/lib/types';
+import { GiftType } from '@/lib/types';
+import { useGiftCatalog } from '@/hooks/use-gift-catalog';
 import { useWallet } from '@/hooks/use-wallet';
 import { RoomCompositorView, CompositorHandle } from '@/components/live/room-compositor-view';
 import { ProductDrawer } from '@/components/live/product-drawer';
@@ -29,6 +30,7 @@ export default function LiveView({ streamId }: { streamId: string }) {
   const [insufficientCoins, setInsufficientCoins] = useState<number | null>(null);
   const [captionsOn, setCaptionsOn] = useState(true);
   const { wallet } = useWallet(user?.uid);
+  const giftCatalog = useGiftCatalog();
 
   // Persist caption preference per-viewer
   useEffect(() => {
@@ -302,7 +304,7 @@ export default function LiveView({ streamId }: { streamId: string }) {
               <span className="text-xs text-white/60">🪙 {wallet.coins.toLocaleString()}</span>
             </div>
             <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto">
-              {GIFT_CATALOG.map((gift) => {
+              {giftCatalog.map((gift) => {
                 const affordable = wallet.coins >= gift.coinCost;
                 return (
                   <button key={gift.id} onClick={() => sendGift(gift)}
