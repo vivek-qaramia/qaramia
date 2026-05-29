@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Video } from '@/lib/types';
@@ -54,7 +55,7 @@ function VideoCard({ video }: { video: Video }) {
     n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1_000 ? `${(n / 1_000).toFixed(1)}K` : `${n}`;
 
   return (
-    <div className="group cursor-pointer">
+    <Link href={`/video/${video.id}`} className="group cursor-pointer block">
       <div className="relative aspect-[9/16] bg-zinc-900 rounded-lg overflow-hidden mb-2">
         {video.thumbnailUrl ? (
           <img src={video.thumbnailUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
@@ -83,6 +84,6 @@ function VideoCard({ video }: { video: Video }) {
         <span>❤️ {fmt(video.likeCount)}</span>
         <span>💬 {fmt(video.commentCount)}</span>
       </div>
-    </div>
+    </Link>
   );
 }

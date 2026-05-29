@@ -92,6 +92,7 @@ flutter:
     - assets/animations/
     - assets/branding/
     - assets/icons/
+    - assets/rooms/
 
 # ── App icon generation ──────────────────────────────────────────────────────
 # Run: dart run flutter_launcher_icons

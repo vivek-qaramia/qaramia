@@ -10,11 +10,8 @@ import { CaptionEngine, isCaptionSupported } from '@/lib/speech/caption-engine';
 import { useDanmaku, useSingleStream } from '@/hooks/use-live-stream';
 import { useCohosts } from '@/hooks/use-cohosts';
 import { CohostInvite } from '@/components/live/cohost-invite';
-import { RoomCompositorView, CompositorHandle } from '@/components/live/room-compositor-view';
-import { RoomPicker } from '@/components/live/room-picker';
 import { FilterPicker } from '@/components/live/filter-picker';
 import { AudioEffectPicker } from '@/components/live/audio-effect-picker';
-import { LensPicker } from '@/components/live/lens-picker';
 import { ProductDrawer } from '@/components/live/product-drawer';
 import { AudioEffectPipeline } from '@/lib/audio/audio-effects';
 import { scanBarcodeFromVideo } from '@/lib/product-scanner/barcode-scanner';
@@ -22,10 +19,11 @@ import { lookupBarcode } from '@/lib/product-scanner/product-lookup';
 import { captureFingerprint, fingerprintDiff, SCENE_CHANGE_THRESHOLD } from '@/lib/product-scanner/frame-fingerprint';
 import type { ProductInfo, Ad } from '@/lib/types';
 import { matchAd } from '@/hooks/use-ads';
-import { SnapLensPipeline, type LensInfo } from '@/lib/snap/snap-lens-pipeline';
 import { VIDEO_FILTERS } from '@/lib/compositing/video-filters';
 import { FilterCanvas } from '@/lib/compositing/filter-canvas';
-import AgoraRTC, { ILocalAudioTrack, IAgoraRTCRemoteUser } from 'agora-rtc-sdk-ng';
+import { ROOM_BACKGROUNDS } from '@/lib/room-backgrounds';
+import AgoraRTC, { ILocalAudioTrack, ICameraVideoTrack, IAgoraRTCRemoteUser } from 'agora-rtc-sdk-ng';
+import VirtualBackgroundExtension, { IVirtualBackgroundProcessor } from 'agora-extension-virtual-background';
 
 const QUALITY_PRESETS = {
   '480p':   { label: '480p',       width: 854,  height: 480,  frameRate: 30, bitrateMax: 1500, bitrateMin: 300  },
@@ -36,9 +34,23 @@ const QUALITY_PRESETS = {
 type QualityPresetKey = keyof typeof QUALITY_PRESETS;
 
 const AGORA_APP_ID = process.env.NEXT_PUBLIC_AGORA_APP_ID ?? '';
-const SNAP_API_TOKEN = process.env.NEXT_PUBLIC_SNAP_API_TOKEN ?? '';
-const SNAP_LENS_GROUP_ID = process.env.NEXT_PUBLIC_SNAP_LENS_GROUP_ID ?? '';
 const CATEGORIES = ['General', 'Gaming', 'Music', 'IRL', 'Sports', 'Cooking', 'Education'];
+
+// Loaded HTMLImageElements for Room Mode are kept here so toggling between
+// rooms doesn't re-fetch the JPG every time. The Agora VB extension requires
+// a fully-decoded Image (img.complete === true) — we await img.decode() once
+// per URL and reuse from cache afterwards.
+const roomImageCache = new Map<string, HTMLImageElement>();
+async function loadRoomImage(url: string): Promise<HTMLImageElement> {
+  const cached = roomImageCache.get(url);
+  if (cached) return cached;
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.src = url;
+  await img.decode();
+  roomImageCache.set(url, img);
+  return img;
+}
 
 export default function StudioView() {
   const { user } = useAuthStore();
@@ -48,11 +60,20 @@ export default function StudioView() {
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('General');
   const [starting, setStarting] = useState(false);
-  const [virtualBg, setVirtualBg] = useState(false);
+  // Room Mode — host's camera background is replaced with the chosen
+  // preset's solid colour via Agora's virtual-background extension.
+  // Mirrors flutter_app's _roomMode + _selectedBgId.
   const [roomMode, setRoomMode] = useState(false);
-  const [selectedBgId, setSelectedBgId] = useState('studio_black');
-
-  const useCompositor = virtualBg || roomMode;
+  const [selectedBgId, setSelectedBgId] = useState('modern_studio');
+  const [roomPanelOpen, setRoomPanelOpen] = useState(false);
+  const vbProcessorRef = useRef<IVirtualBackgroundProcessor | null>(null);
+  // The extension itself, kept so startStream can mint a SECOND processor for
+  // the published track. A processor instance is bound to one track for its
+  // lifetime — reusing the preview's processor on the published track throws
+  // a context-mismatch error.
+  const vbExtRef = useRef<VirtualBackgroundExtension | null>(null);
+  const vbPublishProcessorRef = useRef<IVirtualBackgroundProcessor | null>(null);
+  const previewVideoTrackRef = useRef<ICameraVideoTrack | null>(null);
   const [filterId, setFilterId] = useState('none');
   const filterCanvasRef = useRef<FilterCanvas | null>(null);
   const [audioEffectId, setAudioEffectId] = useState('none');
@@ -60,8 +81,6 @@ export default function StudioView() {
 
   const [qualityPreset, setQualityPreset] = useState<QualityPresetKey>('720p');
   const [uplinkQuality, setUplinkQuality] = useState(0);
-  const [snapPanelOpen, setSnapPanelOpen] = useState(false);
-  const [bgPanelOpen, setBgPanelOpen] = useState(false); // 0=unknown 1-2=good 3=fair 4-5=poor 6=down
 
   // Product scanner
   const [scanning, setScanning] = useState(false);
@@ -86,21 +105,18 @@ export default function StudioView() {
   const transcriptBufferRef = useRef<{ text: string; t: number }[]>([]);
   const lastSpeechMatchRef = useRef<number>(0);
 
-  // Snap Camera Kit
-  const [snapEnabled, setSnapEnabled] = useState(false);
-  const [selectedLensId, setSelectedLensId] = useState<string | null>(null);
-  const [snapLenses, setSnapLenses] = useState<LensInfo[]>([]);
-  const [snapLoading, setSnapLoading] = useState(false);
-  const snapPipelineRef = useRef<SnapLensPipeline | null>(null);
-  const snapPreviewContainerRef = useRef<HTMLDivElement | null>(null);
-
   // Raw camera preview (used in normal + compositor mode)
   const previewRef = useRef<HTMLDivElement>(null);
   const localVideoElRef = useRef<HTMLVideoElement | null>(null);
+  // Where the co-host's remote video gets attached when they join. Null
+  // when no co-host is publishing; a ref to a div otherwise. The host
+  // doesn't auto-subscribe to other broadcasters in Agora's model, so we
+  // subscribe explicitly in the user-published handler.
+  const cohostRef = useRef<HTMLDivElement>(null);
+  const [cohostUid, setCohostUid] = useState<string | number | null>(null);
 
   const clientRef = useRef<ReturnType<typeof AgoraRTC.createClient> | null>(null);
   const audioTrackRef = useRef<ILocalAudioTrack | null>(null);
-  const compositorRef = useRef<CompositorHandle | null>(null);
 
   const stream = useSingleStream(streamId);
   const messages = useDanmaku(streamId ?? '');
@@ -110,93 +126,82 @@ export default function StudioView() {
     if (!user) router.push('/login');
   }, [user, router]);
 
-  // Agora camera preview — skip when Snap owns the camera
+  // Register the Agora virtual-background extension once. The same extension
+  // singleton is shared across all video tracks the page creates (preview +
+  // the published track once Go Live is tapped).
+  //
+  // The extension's enable/disable/setOptions are sync-void (not Promise);
+  // only init() returns a Promise. Mixing them needs try/catch instead of
+  // .catch() chains — getting that wrong was an earlier runtime crash.
   useEffect(() => {
-    if (snapEnabled) return;
-    let videoTrack: Awaited<ReturnType<typeof AgoraRTC.createCameraVideoTrack>>;
+    const ext = new VirtualBackgroundExtension();
+    AgoraRTC.registerExtensions([ext]);
+    vbExtRef.current = ext;
+    const processor = ext.createProcessor();
+    processor.init().then(() => {
+      vbProcessorRef.current = processor;
+    }).catch((e) => console.warn('VB extension init failed', e));
+    return () => {
+      vbProcessorRef.current = null;
+      vbExtRef.current = null;
+      try { processor.disable(); } catch { /* extension teardown — ignore */ }
+    };
+  }, []);
+
+  // Agora camera preview
+  useEffect(() => {
+    let videoTrack: ICameraVideoTrack | undefined;
     AgoraRTC.createCameraVideoTrack().then((track) => {
       videoTrack = track;
+      previewVideoTrackRef.current = track;
       if (previewRef.current) {
         track.play(previewRef.current);
         const el = previewRef.current.querySelector('video');
         if (el) localVideoElRef.current = el;
       }
     }).catch(() => {});
-    return () => { videoTrack?.stop(); videoTrack?.close(); };
-  }, [snapEnabled]);
-
-  // Camera Kit lifecycle
-  useEffect(() => {
-    if (!snapEnabled || !SNAP_API_TOKEN) return;
-    setSnapLoading(true);
-    const pipeline = new SnapLensPipeline();
-    snapPipelineRef.current = pipeline;
-
-    pipeline.init(SNAP_API_TOKEN, SNAP_LENS_GROUP_ID)
-      .then(() => {
-        if (snapPreviewContainerRef.current && pipeline.outputCanvas) {
-          snapPreviewContainerRef.current.innerHTML = '';
-          const canvas = pipeline.outputCanvas;
-          canvas.style.cssText = 'width:100%;height:100%;display:block;';
-          snapPreviewContainerRef.current.appendChild(canvas);
-        }
-        setSnapLenses(pipeline.getLenses());
-        setSnapLoading(false);
-      })
-      .catch((err) => {
-        console.error('Camera Kit init failed', err);
-        setSnapLoading(false);
-      });
-
     return () => {
-      pipeline.destroy();
-      snapPipelineRef.current = null;
-      setSnapLenses([]);
-      setSelectedLensId(null);
+      previewVideoTrackRef.current = null;
+      videoTrack?.stop();
+      videoTrack?.close();
     };
-  }, [snapEnabled]);
+  }, []);
 
-  // Apply / clear lens when selection changes
+  // Toggle the virtual background processor on the preview track whenever
+  // Room Mode is enabled/disabled or the chosen background changes. The
+  // exact same processor will be carried over to the published track in
+  // startStream so what the host sees is what viewers see.
   useEffect(() => {
-    if (!snapPipelineRef.current) return;
-    if (selectedLensId) {
-      snapPipelineRef.current.applyLens(selectedLensId);
-    } else {
-      snapPipelineRef.current.clearLens();
+    const processor = vbProcessorRef.current;
+    const track = previewVideoTrackRef.current;
+    if (!processor || !track) return;
+    if (!roomMode) {
+      try { processor.disable(); track.unpipe(); } catch (e) {
+        console.warn('Room Mode disable failed', e);
+      }
+      return;
     }
-  }, [selectedLensId]);
-
-  // Wire co-host remote video tracks into the compositor
-  useEffect(() => {
-    if (!clientRef.current || !compositorRef.current) return;
-    const client = clientRef.current;
-    const comp = compositorRef.current;
-
-    const onPublished = async (remoteUser: IAgoraRTCRemoteUser, mediaType: 'video' | 'audio') => {
+    // Async because the JPG has to be fetched + decoded before the processor
+    // can use it. We fall back to a solid colour if the image fails to load
+    // (e.g. file missing in dev) so the host still gets a noticeable change.
+    (async () => {
+      const bg = ROOM_BACKGROUNDS.find((b) => b.id === selectedBgId) ?? ROOM_BACKGROUNDS[0];
       try {
-        await client.subscribe(remoteUser, mediaType);
-      } catch (e: unknown) {
-        if ((e as { code?: string })?.code !== 'OPERATION_ABORTED') console.error(e);
-        return;
+        const img = await loadRoomImage(bg.imageUrl);
+        processor.setOptions({ type: 'img', source: img });
+      } catch (e) {
+        console.warn(`Room image failed (${bg.imageUrl}), falling back to colour`, e);
+        processor.setOptions({ type: 'color', color: bg.color });
       }
-      if (mediaType === 'video' && remoteUser.videoTrack && useCompositor) {
-        const el = document.createElement('video');
-        el.autoplay = true; el.muted = true; el.playsInline = true;
-        remoteUser.videoTrack.play(el);
-        comp.addRemoteVideo(String(remoteUser.uid), el);
+      try {
+        processor.enable();
+        track.pipe(processor).pipe(track.processorDestination);
+      } catch (e) {
+        console.warn('Room Mode toggle failed', e);
       }
-    };
-    const onUnpublished = (remoteUser: IAgoraRTCRemoteUser) => {
-      comp.removeRemoteVideo(String(remoteUser.uid));
-    };
+    })();
+  }, [roomMode, selectedBgId]);
 
-    client.on('user-published', onPublished);
-    client.on('user-unpublished', onUnpublished);
-    return () => {
-      client.off('user-published', onPublished);
-      client.off('user-unpublished', onUnpublished);
-    };
-  }, [isLive, useCompositor]);
 
   useEffect(() => {
     audioEffectRef.current?.setEffect(audioEffectId);
@@ -225,9 +230,7 @@ export default function StudioView() {
     setScanning(true);
     if (!auto) setDetectedProducts([]);
     try {
-      const videoEl = snapEnabled
-        ? snapPipelineRef.current?.rawVideoEl ?? null
-        : localVideoElRef.current;
+      const videoEl = localVideoElRef.current;
       if (!videoEl) return;
 
       // 1. Barcode (always fast + free)
@@ -400,14 +403,31 @@ export default function StudioView() {
         setUplinkQuality(stats.uplinkNetworkQuality);
       });
 
+      // Co-host video — when a second broadcaster publishes, subscribe and
+      // bind the remote video track to the cohostRef tile. Agora doesn't
+      // auto-subscribe broadcasters to each other so we have to do this
+      // explicitly. v1 supports a single co-host.
+      client.on('user-published', async (remote: IAgoraRTCRemoteUser, mediaType: 'video' | 'audio') => {
+        try {
+          await client.subscribe(remote, mediaType);
+        } catch (e: unknown) {
+          if ((e as { code?: string })?.code !== 'OPERATION_ABORTED') console.error(e);
+          return;
+        }
+        if (mediaType === 'video' && remote.videoTrack && cohostRef.current) {
+          remote.videoTrack.play(cohostRef.current);
+          setCohostUid(remote.uid);
+        }
+      });
+      client.on('user-unpublished', (remote: IAgoraRTCRemoteUser) => {
+        if (cohostUid === remote.uid) setCohostUid(null);
+      });
+
       const preset = QUALITY_PRESETS[qualityPreset];
 
-      // Mic only in snap mode (Camera Kit already owns the camera)
       let audioTrack: ILocalAudioTrack;
       let videoTrackFromAgora: Awaited<ReturnType<typeof AgoraRTC.createCameraVideoTrack>> | null = null;
-      if (snapEnabled) {
-        audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
-      } else {
+      {
         const tracks = await AgoraRTC.createMicrophoneAndCameraTracks({}, {
           encoderConfig: {
             width: preset.width, height: preset.height,
@@ -431,31 +451,44 @@ export default function StudioView() {
 
       const customTrackOpts = { bitrateMax: preset.bitrateMax, bitrateMin: preset.bitrateMin, frameRate: preset.frameRate };
 
-      if (snapEnabled && snapPipelineRef.current) {
-        const snapStream = snapPipelineRef.current.captureStream(preset.frameRate);
-        if (snapStream) {
-          const snapVideoTrack = AgoraRTC.createCustomVideoTrack({ mediaStreamTrack: snapStream.getVideoTracks()[0], ...customTrackOpts });
-          await client.publish([effectiveAudioTrack, snapVideoTrack]);
+      // Composite the room background onto the PUBLISHED track when Room Mode
+      // is active. We mint a dedicated processor here rather than reuse the
+      // preview's — a VB processor is bound to a single track for its
+      // lifetime, so the preview-track processor can't be re-piped onto this
+      // one (it throws a context-mismatch error). The image is already cached
+      // from the preview path so loadRoomImage resolves instantly.
+      const ext = vbExtRef.current;
+      if (roomMode && ext && videoTrackFromAgora) {
+        try {
+          const pubProcessor = ext.createProcessor();
+          await pubProcessor.init();
+          vbPublishProcessorRef.current = pubProcessor;
+          const bg = ROOM_BACKGROUNDS.find((b) => b.id === selectedBgId) ?? ROOM_BACKGROUNDS[0];
+          try {
+            const img = await loadRoomImage(bg.imageUrl);
+            pubProcessor.setOptions({ type: 'img', source: img });
+          } catch (e) {
+            console.warn(`Room image failed for publish (${bg.imageUrl})`, e);
+            pubProcessor.setOptions({ type: 'color', color: bg.color });
+          }
+          pubProcessor.enable();
+          videoTrackFromAgora.pipe(pubProcessor).pipe(videoTrackFromAgora.processorDestination);
+        } catch (e) {
+          console.warn('Room Mode publish wiring failed', e);
         }
-      } else if (useCompositor && compositorRef.current) {
-        const compositeStream = compositorRef.current.captureStream(preset.frameRate);
-        if (compositeStream) {
-          const compositeTrack = AgoraRTC.createCustomVideoTrack({ mediaStreamTrack: compositeStream.getVideoTracks()[0], ...customTrackOpts });
-          await client.publish([effectiveAudioTrack, compositeTrack]);
-        }
-      } else {
-        const selectedFilter = VIDEO_FILTERS.find((f) => f.id === filterId);
-        if (selectedFilter && selectedFilter.css !== 'none' && localVideoElRef.current) {
-          const fc = new FilterCanvas(localVideoElRef.current);
-          fc.setFilter(selectedFilter);
-          fc.start();
-          filterCanvasRef.current = fc;
-          const filteredTrack = AgoraRTC.createCustomVideoTrack({ mediaStreamTrack: fc.captureStream(preset.frameRate).getVideoTracks()[0], ...customTrackOpts });
-          await client.publish([effectiveAudioTrack, filteredTrack]);
-        } else if (videoTrackFromAgora) {
-          if (previewRef.current) videoTrackFromAgora.play(previewRef.current);
-          await client.publish([effectiveAudioTrack, videoTrackFromAgora]);
-        }
+      }
+
+      const selectedFilter = VIDEO_FILTERS.find((f) => f.id === filterId);
+      if (selectedFilter && selectedFilter.css !== 'none' && localVideoElRef.current) {
+        const fc = new FilterCanvas(localVideoElRef.current);
+        fc.setFilter(selectedFilter);
+        fc.start();
+        filterCanvasRef.current = fc;
+        const filteredTrack = AgoraRTC.createCustomVideoTrack({ mediaStreamTrack: fc.captureStream(preset.frameRate).getVideoTracks()[0], ...customTrackOpts });
+        await client.publish([effectiveAudioTrack, filteredTrack]);
+      } else if (videoTrackFromAgora) {
+        if (previewRef.current) videoTrackFromAgora.play(previewRef.current);
+        await client.publish([effectiveAudioTrack, videoTrackFromAgora]);
       }
 
       setStreamId(docRef.id);
@@ -472,6 +505,8 @@ export default function StudioView() {
     audioTrackRef.current?.stop(); audioTrackRef.current?.close();
     filterCanvasRef.current?.stop(); filterCanvasRef.current = null;
     audioEffectRef.current?.close(); audioEffectRef.current = null;
+    try { vbPublishProcessorRef.current?.disable(); } catch { /* processor torn down with the track — ignore */ }
+    vbPublishProcessorRef.current = null;
     await clientRef.current?.leave();
     await updateDoc(doc(db, 'streams', streamId), { status: 'ended', endedAt: serverTimestamp() });
 
@@ -505,56 +540,21 @@ export default function StudioView() {
         {/* Left: Preview + controls */}
         <div className="lg:col-span-2 space-y-4">
 
-          {/* Preview — Snap AR / Compositor / Raw camera */}
-          {snapEnabled ? (
-            <div className="relative aspect-video bg-black rounded-xl overflow-hidden">
-              <div ref={snapPreviewContainerRef} className="w-full h-full" />
-              {snapLoading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/60">
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="w-8 h-8 border-2 border-[#FFFC00] border-t-transparent rounded-full animate-spin" />
-                    <span className="text-xs text-white/60">Loading Camera Kit…</span>
-                  </div>
-                </div>
-              )}
-              <div className="absolute top-3 left-3 flex items-center gap-2">
-                <div className="px-2 py-1 bg-[#FFFC00] text-black text-xs font-bold rounded">AR</div>
-                <div className="px-2 py-1 bg-black/60 text-white text-xs font-semibold rounded">Snap Camera Kit</div>
+          {/* Preview — raw camera. Splits 50/50 side-by-side when a co-host
+              has joined and is publishing. cohostRef is always mounted (just
+              hidden until a co-host joins) so the user-published handler can
+              call .play() into it BEFORE setCohostUid flips the layout —
+              otherwise the ref would be null and we'd never set the uid. */}
+          <div className="relative aspect-video bg-zinc-950 rounded-xl overflow-hidden">
+              <div className={`w-full h-full ${cohostUid ? 'flex flex-row' : ''}`}>
+                <div
+                  ref={previewRef}
+                  className={cohostUid ? 'flex-1 min-w-0' : 'w-full h-full'}
+                  style={{ filter: filterId !== 'none' ? (VIDEO_FILTERS.find(f => f.id === filterId)?.css ?? '') : undefined }}
+                />
+                {cohostUid && <div className="w-0.5 bg-white/20 shrink-0" />}
+                <div ref={cohostRef} className={cohostUid ? 'flex-1 min-w-0' : 'hidden'} />
               </div>
-              {isLive && (
-                <div className="absolute top-3 right-3 flex items-center gap-2">
-                  <SignalBadge quality={uplinkQuality} />
-                  <span className="px-3 py-1 bg-[#FF7043] text-white text-sm font-bold rounded-full animate-pulse">● LIVE</span>
-                </div>
-              )}
-              <ScanButton scanning={scanning} continuous={continuousScan} onScan={() => handleScan(false)} onToggleContinuous={() => setContinuousScan(c => !c)} />
-              <ProductDrawer products={detectedProducts} featuredAd={featuredAd} onClose={dismissProducts} onAffiliateClick={() => setSessionAffiliateClicks(c => c + 1)} />
-            </div>
-          ) : useCompositor ? (
-            <div className="relative">
-              <RoomCompositorView
-                ref={compositorRef}
-                localVideoElement={localVideoElRef.current}
-                localUid={user.uid}
-                backgroundId={selectedBgId}
-                filterId={filterId}
-              />
-              {isLive && (
-                <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
-                  <SignalBadge quality={uplinkQuality} />
-                  <span className="px-3 py-1 bg-[#FF7043] text-white text-sm font-bold rounded-full animate-pulse">● LIVE</span>
-                </div>
-              )}
-              <ScanButton scanning={scanning} continuous={continuousScan} onScan={() => handleScan(false)} onToggleContinuous={() => setContinuousScan(c => !c)} />
-              <ProductDrawer products={detectedProducts} featuredAd={featuredAd} onClose={dismissProducts} onAffiliateClick={() => setSessionAffiliateClicks(c => c + 1)} />
-            </div>
-          ) : (
-            <div className="relative aspect-video bg-zinc-950 rounded-xl overflow-hidden">
-              <div
-                ref={previewRef}
-                className="w-full h-full"
-                style={{ filter: filterId !== 'none' ? (VIDEO_FILTERS.find(f => f.id === filterId)?.css ?? '') : undefined }}
-              />
               {isLive && (
                 <div className="absolute top-4 left-4 flex items-center gap-3">
                   <span className="px-3 py-1 bg-[#FF7043] text-white text-sm font-bold rounded-full animate-pulse">● LIVE</span>
@@ -573,8 +573,7 @@ export default function StudioView() {
               )}
               <ScanButton scanning={scanning} continuous={continuousScan} onScan={() => handleScan(false)} onToggleContinuous={() => setContinuousScan(c => !c)} />
               <ProductDrawer products={detectedProducts} featuredAd={featuredAd} onClose={dismissProducts} onAffiliateClick={() => setSessionAffiliateClicks(c => c + 1)} />
-            </div>
-          )}
+          </div>
 
           {/* Stream setup */}
           {!isLive ? (
@@ -638,76 +637,60 @@ export default function StudioView() {
             </button>
           )}
 
-          {/* Snap AR Lenses — collapsible */}
+          {/* Room Mode — virtual background. Mirrors Flutter's _roomMode UI:
+              host toggles on, picks one of the four preset rooms, and the
+              Agora virtual-background extension paints that solid colour
+              behind them using on-device AI segmentation. */}
           {!isLive && (
             <div className="bg-zinc-900 rounded-xl overflow-hidden">
               <div className="flex items-center gap-3 px-4 py-3">
                 <div
-                  onClick={() => { const next = !snapEnabled; setSnapEnabled(next); if (next) { setVirtualBg(false); setRoomMode(false); } }}
-                  className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer shrink-0 ${snapEnabled ? 'bg-[#FFFC00]' : 'bg-white/20'}`}
+                  onClick={() => setRoomMode((r) => !r)}
+                  className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer shrink-0 ${
+                    roomMode ? 'bg-[#FF7043]' : 'bg-white/20'
+                  }`}
                 >
-                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${snapEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                  <div
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                      roomMode ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
                 </div>
-                <div className="flex items-center gap-2 flex-1">
-                  <span className="text-sm font-medium">AR Lenses</span>
-                  <span className="px-1.5 py-0.5 bg-[#FFFC00] text-black text-[10px] font-bold rounded">Snap</span>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">🏠 Room Mode</p>
+                  <p className="text-xs text-white/40">Replace your background with a virtual room</p>
                 </div>
-                <button onClick={() => setSnapPanelOpen(o => !o)} className="text-white/40 hover:text-white/70 text-xs px-1 transition">
-                  {snapPanelOpen ? '▲' : '▼'}
+                <button
+                  onClick={() => setRoomPanelOpen((o) => !o)}
+                  className="text-white/40 hover:text-white/70 text-xs px-1 transition"
+                >
+                  {roomPanelOpen ? '▲' : '▼'}
                 </button>
               </div>
-              {snapPanelOpen && (
-                <div className="px-4 pb-4 space-y-3 border-t border-white/10 pt-3">
-                  {snapEnabled && !SNAP_API_TOKEN && (
-                    <p className="text-xs text-amber-400/80 bg-amber-400/10 rounded-lg px-3 py-2">
-                      Add <code className="font-mono">NEXT_PUBLIC_SNAP_API_TOKEN</code> and <code className="font-mono">NEXT_PUBLIC_SNAP_LENS_GROUP_ID</code> to <code className="font-mono">.env.local</code> to use Camera Kit lenses.
-                    </p>
-                  )}
-                  {snapEnabled && SNAP_API_TOKEN && (
-                    <LensPicker lenses={snapLenses} selected={selectedLensId} onSelect={setSelectedLensId} loading={snapLoading} />
-                  )}
-                  {!snapEnabled && <p className="text-xs text-white/30">Enable the toggle to activate AR lenses.</p>}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Virtual Background + Room Mode — collapsible */}
-          {!isLive && (
-            <div className={`bg-zinc-900 rounded-xl overflow-hidden ${snapEnabled ? 'opacity-40 pointer-events-none' : ''}`}>
-              <div className="flex items-center gap-3 px-4 py-3">
-                <div
-                  onClick={() => { const next = !virtualBg; setVirtualBg(next); if (!next) setRoomMode(false); }}
-                  className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer shrink-0 ${virtualBg ? 'bg-[#FF7043]' : 'bg-white/20'}`}
-                >
-                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${virtualBg ? 'translate-x-6' : 'translate-x-1'}`} />
-                </div>
-                <span className="text-sm font-medium flex-1">Virtual Background</span>
-                <button onClick={() => setBgPanelOpen(o => !o)} className="text-white/40 hover:text-white/70 text-xs px-1 transition">
-                  {bgPanelOpen ? '▲' : '▼'}
-                </button>
-              </div>
-              {bgPanelOpen && (
-                <div className="px-4 pb-4 space-y-3 border-t border-white/10 pt-3">
-                  {virtualBg ? (
-                    <>
-                      <RoomPicker selected={selectedBgId} onSelect={(bg) => setSelectedBgId(bg.id)} />
-                      <label className="flex items-center gap-3 cursor-pointer select-none pt-1 border-t border-white/10">
-                        <div
-                          onClick={() => setRoomMode(!roomMode)}
-                          className={`relative w-11 h-6 rounded-full transition-colors ${roomMode ? 'bg-[#FFD166]' : 'bg-white/20'}`}
-                        >
-                          <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${roomMode ? 'translate-x-6' : 'translate-x-1'}`} />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium">Room Mode</p>
-                          <p className="text-xs text-white/40">Co-hosts appear in the same virtual space</p>
-                        </div>
-                      </label>
-                    </>
-                  ) : (
-                    <p className="text-xs text-white/30">Enable the toggle to choose a background.</p>
-                  )}
+              {roomPanelOpen && roomMode && (
+                <div className="px-4 pb-4 border-t border-white/10 pt-3">
+                  <div className="grid grid-cols-4 gap-2">
+                    {ROOM_BACKGROUNDS.map((bg) => (
+                      <button
+                        key={bg.id}
+                        onClick={() => setSelectedBgId(bg.id)}
+                        className={`aspect-square rounded-lg transition border-2 overflow-hidden bg-cover bg-center ${
+                          selectedBgId === bg.id
+                            ? 'border-[#FF7043]'
+                            : 'border-transparent hover:border-white/30'
+                        }`}
+                        style={{
+                          backgroundImage: `url(${bg.imageUrl}), linear-gradient(to bottom, ${bg.color}, #000)`,
+                          backgroundColor: bg.color,
+                        }}
+                        title={bg.name}
+                      >
+                        <span className="block text-[10px] text-white text-center pt-1 px-1 truncate drop-shadow">
+                          {bg.name}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

@@ -33,7 +33,13 @@ class CaptionsController extends ConsumerStatefulWidget {
 
 class _CaptionsControllerState extends ConsumerState<CaptionsController> {
   bool _enabled = false;
-  bool _supported = true;
+  // Default false because CaptionsController is only mounted inside the
+  // host's _BroadcastView, and Android's SpeechRecognizer can't open the
+  // mic while Agora is broadcasting (the broadcaster role holds AudioRecord
+  // exclusively). The disabled-pill UI below renders accordingly and the
+  // tap handler is gated by _supported, so _toggle / _start are unreachable
+  // — kept around for when Agora's AudioFrameObserver pipeline is wired up.
+  bool _supported = false;
   CaptionEngine? _engine;
   String? _currentText;
   int _lastWriteMs = 0;
@@ -191,7 +197,7 @@ class _CaptionsControllerState extends ConsumerState<CaptionsController> {
                 const SizedBox(width: 4),
                 Text(
                   !_supported
-                      ? 'CC unavailable'
+                      ? 'CC paused while live'
                       : _enabled ? 'CC' : 'CC',
                   style: TextStyle(
                     color: _enabled ? Colors.white : Colors.white70,

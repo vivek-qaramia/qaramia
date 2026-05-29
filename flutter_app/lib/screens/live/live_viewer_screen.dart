@@ -32,7 +32,11 @@ class LiveViewerScreen extends ConsumerStatefulWidget {
 
 class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
   RtcEngine? _engine;
-  int? _remoteUid;
+  // Agora-session uids of every remote broadcaster currently publishing on
+  // this channel. Index 0 is treated as the primary (host); index 1 is the
+  // co-host. The viewer renders single-tile when there's 1, split 50/50
+  // when there are 2.
+  final List<int> _remoteUids = [];
   bool _showGiftPanel = false;
   bool _shopMode = true; // Shop/Reels top-right toggle (Shop = default)
   Map<String, dynamic>? _pendingInvite;
@@ -51,8 +55,18 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
     _engine = createAgoraRtcEngine();
     await _engine!.initialize(RtcEngineContext(appId: _agoraAppId));
     _engine!.registerEventHandler(RtcEngineEventHandler(
-      onUserJoined: (conn, uid, elapsed) => setState(() => _remoteUid = uid),
-      onUserOffline: (conn, uid, reason) => setState(() => _remoteUid = null),
+      onUserJoined: (conn, uid, elapsed) {
+        if (!mounted) return;
+        setState(() {
+          if (!_remoteUids.contains(uid) && _remoteUids.length < 2) {
+            _remoteUids.add(uid);
+          }
+        });
+      },
+      onUserOffline: (conn, uid, reason) {
+        if (!mounted) return;
+        setState(() => _remoteUids.remove(uid));
+      },
     ));
     await _engine!.setClientRole(role: ClientRoleType.clientRoleAudience);
     await _engine!.enableVideo();
@@ -224,12 +238,39 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Remote video
-          if (_remoteUid != null)
+          // Remote video — split 50/50 side-by-side when both host and
+          // co-host are publishing, single-tile otherwise. Each
+          // AgoraVideoView is for a specific Agora uid; viewers in audience
+          // role get auto-subscribed to all broadcasters on the channel.
+          if (_remoteUids.length == 2)
+            Row(
+              children: [
+                Expanded(
+                  child: AgoraVideoView(
+                    controller: VideoViewController.remote(
+                      rtcEngine: _engine!,
+                      canvas: VideoCanvas(uid: _remoteUids[0]),
+                      connection: RtcConnection(channelId: widget.stream.agoraChannel),
+                    ),
+                  ),
+                ),
+                Container(width: 2, color: Colors.white24),
+                Expanded(
+                  child: AgoraVideoView(
+                    controller: VideoViewController.remote(
+                      rtcEngine: _engine!,
+                      canvas: VideoCanvas(uid: _remoteUids[1]),
+                      connection: RtcConnection(channelId: widget.stream.agoraChannel),
+                    ),
+                  ),
+                ),
+              ],
+            )
+          else if (_remoteUids.length == 1)
             AgoraVideoView(
               controller: VideoViewController.remote(
                 rtcEngine: _engine!,
-                canvas: VideoCanvas(uid: _remoteUid),
+                canvas: VideoCanvas(uid: _remoteUids[0]),
                 connection: RtcConnection(channelId: widget.stream.agoraChannel),
               ),
             )

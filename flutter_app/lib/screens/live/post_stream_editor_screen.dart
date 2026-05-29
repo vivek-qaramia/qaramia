@@ -155,7 +155,14 @@ double scaleAtPosition({
 /// deferred to a later phase to avoid pulling in the discontinued FFmpegKit.
 class PostStreamEditorScreen extends ConsumerStatefulWidget {
   final String recordingPath;
-  const PostStreamEditorScreen({super.key, required this.recordingPath});
+  // Pre-fill the caption field with the stream's title so the host doesn't
+  // have to retype it. Editable in the publish dialog.
+  final String initialCaption;
+  const PostStreamEditorScreen({
+    super.key,
+    required this.recordingPath,
+    this.initialCaption = '',
+  });
 
   @override
   ConsumerState<PostStreamEditorScreen> createState() => _PostStreamEditorScreenState();
@@ -186,6 +193,9 @@ class _PostStreamEditorScreenState extends ConsumerState<PostStreamEditorScreen>
   static const double _textDurationMs = 3000;
   final List<TextOverlay> _texts = [];
   final TextEditingController _textInputCtrl = TextEditingController();
+  // Caption shown to viewers in the feed. Pre-filled with the stream title
+  // (see widget.initialCaption, set in initState).
+  late final TextEditingController _captionCtrl;
   // Emoji stickers (5e). Same fixed-duration model as text overlays.
   static const double _stickerDurationMs = 3000;
   final List<StickerOverlay> _stickers = [];
@@ -196,6 +206,7 @@ class _PostStreamEditorScreenState extends ConsumerState<PostStreamEditorScreen>
   @override
   void initState() {
     super.initState();
+    _captionCtrl = TextEditingController(text: widget.initialCaption);
     _ctrl = VideoPlayerController.file(File(widget.recordingPath));
     _ctrl.initialize().then((_) {
       if (!mounted) return;
@@ -228,6 +239,7 @@ class _PostStreamEditorScreenState extends ConsumerState<PostStreamEditorScreen>
     _ctrl.removeListener(_onTick);
     _ctrl.dispose();
     _textInputCtrl.dispose();
+    _captionCtrl.dispose();
     super.dispose();
   }
 
@@ -343,7 +355,7 @@ class _PostStreamEditorScreenState extends ConsumerState<PostStreamEditorScreen>
         authorUid: user.uid,
         authorUsername: currentUser.username,
         authorAvatarUrl: currentUser.avatarUrl,
-        caption: '',
+        caption: _captionCtrl.text.trim(),
         filterId: _filterId,
         zooms: publishedZooms,
         blurAmount: _blurAmount,
@@ -563,26 +575,51 @@ class _PostStreamEditorScreenState extends ConsumerState<PostStreamEditorScreen>
                           top: false,
                           child: Padding(
                             padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-                            child: Row(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Expanded(
-                                  child: OutlinedButton(
-                                    onPressed: _discard,
-                                    style: OutlinedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(vertical: 14),
+                                TextField(
+                                  controller: _captionCtrl,
+                                  style: const TextStyle(color: Colors.white),
+                                  maxLength: 150,
+                                  maxLines: 2,
+                                  minLines: 1,
+                                  decoration: InputDecoration(
+                                    hintText: 'Add a caption…',
+                                    hintStyle: const TextStyle(color: Colors.white38),
+                                    filled: true,
+                                    fillColor: Colors.white10,
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide.none,
                                     ),
-                                    child: const Text('Discard'),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                    counterStyle: const TextStyle(color: Colors.white38, fontSize: 11),
                                   ),
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: FilledButton(
-                                    onPressed: _publish,
-                                    style: FilledButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(vertical: 14),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: OutlinedButton(
+                                        onPressed: _discard,
+                                        style: OutlinedButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(vertical: 14),
+                                        ),
+                                        child: const Text('Discard'),
+                                      ),
                                     ),
-                                    child: const Text('Publish'),
-                                  ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: FilledButton(
+                                        onPressed: _publish,
+                                        style: FilledButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(vertical: 14),
+                                        ),
+                                        child: const Text('Publish'),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),

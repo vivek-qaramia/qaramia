@@ -57,6 +57,27 @@ export interface Ad {
   createdAt: Date;
 }
 
+/// A single zoom-at-point marker. Mirrors flutter_app's ZoomMarker.
+export interface ZoomMarker {
+  timeMs: number;
+  scale: number;
+  durationMs: number;
+}
+
+/// Centred text overlay shown over the video between [startMs, endMs].
+export interface TextOverlay {
+  text: string;
+  startMs: number;
+  endMs: number;
+}
+
+/// Centred emoji sticker shown over the video between [startMs, endMs].
+export interface StickerOverlay {
+  emoji: string;
+  startMs: number;
+  endMs: number;
+}
+
 export interface Video {
   id: string;
   authorUid: string;
@@ -71,6 +92,14 @@ export interface Video {
   shareCount: number;
   viewCount: number;
   audioTitle?: string;
+  // Post-stream editor effects. All optional — older docs without these
+  // render as untreated video.
+  filterId?: string;
+  zooms?: ZoomMarker[];
+  blurAmount?: number;
+  vignetteIntensity?: number;
+  textOverlays?: TextOverlay[];
+  stickers?: StickerOverlay[];
   createdAt: Date;
 }
 

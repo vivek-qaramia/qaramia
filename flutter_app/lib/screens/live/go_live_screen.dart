@@ -1,9 +1,11 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:flutter_screen_recording/flutter_screen_recording.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/live_stream.dart';
 import '../../providers/providers.dart';
@@ -43,6 +45,11 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   RtcEngine? _engine;
   bool _isRecording = false;
   String? _recordingPath;
+  // The uid of the remote broadcaster (co-host) currently published to the
+  // channel, or null when only the host is streaming. v1 supports a single
+  // co-host so we don't need a list yet — the first remote-published event
+  // wins and unpublish clears it.
+  int? _remoteUid;
   // When true, the broadcast is screen-recorded so the host can edit + publish
   // a clip after End. Default ON, persisted to SharedPreferences. Toggling
   // off skips _startRecording entirely so Android's MediaProjection consent
@@ -163,12 +170,23 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         RtcEngineEventHandler(
           onJoinChannelSuccess: (RtcConnection conn, int elapsed) {
             debugPrint('[GoLive] onJoinChannelSuccess uid=${conn.localUid} elapsed=${elapsed}ms');
-            // Only fire the screen-recording flow if the host opted in. With
-            // it off, no MediaProjection consent dialog appears and no
-            // post-stream editor will open.
             if (mounted && _recordEnabled && !_isRecording) {
               _startRecording(stream);
             }
+          },
+          // A second broadcaster (co-host who accepted an invite) joined
+          // the channel. The Flutter Agora SDK auto-subscribes both
+          // audience AND broadcasters to other broadcasters, so we just
+          // need the uid to render their tile side-by-side in _BroadcastView.
+          onUserJoined: (RtcConnection conn, int remoteUid, int elapsed) {
+            debugPrint('[GoLive] co-host joined uid=$remoteUid');
+            if (!mounted) return;
+            setState(() => _remoteUid = remoteUid);
+          },
+          onUserOffline: (RtcConnection conn, int remoteUid, UserOfflineReasonType reason) {
+            debugPrint('[GoLive] co-host offline uid=$remoteUid reason=$reason');
+            if (!mounted) return;
+            if (_remoteUid == remoteUid) setState(() => _remoteUid = null);
           },
         ),
       );
@@ -226,17 +244,52 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     if (_engine == null) return;
     final bg = kRoomBackgrounds.firstWhere((b) => b.id == bgId,
         orElse: () => kRoomBackgrounds.first);
+
+    // Agora's backgroundImg source needs a real file path on local storage,
+    // not an asset URI. Copy the bundled JPG to the temp dir once per room
+    // and reuse the file on subsequent toggles. Falls back to the solid
+    // agoraColor if the asset is missing (e.g. before you've dropped the
+    // JPGs into assets/rooms/).
+    String? filePath;
+    try {
+      filePath = await _resolveRoomImagePath(bg.assetPath);
+    } catch (e) {
+      debugPrint('[RoomMode] image unavailable for ${bg.id} ($e), '
+          'falling back to solid colour');
+    }
+
     await _engine!.enableVirtualBackground(
       enabled: true,
-      backgroundSource: VirtualBackgroundSource(
-        backgroundSourceType: BackgroundSourceType.backgroundColor,
-        color: bg.agoraColor,
-      ),
+      backgroundSource: filePath != null
+          ? VirtualBackgroundSource(
+              backgroundSourceType: BackgroundSourceType.backgroundImg,
+              source: filePath,
+            )
+          : VirtualBackgroundSource(
+              backgroundSourceType: BackgroundSourceType.backgroundColor,
+              color: bg.agoraColor,
+            ),
       segproperty: const SegmentationProperty(
         modelType: SegModelType.segModelAi,
         greenCapacity: 0.5,
       ),
     );
+  }
+
+  /// Copy [assetPath] (e.g. `assets/rooms/modern_studio.jpg`) to the app's
+  /// temp directory the first time it's needed, then reuse the cached file
+  /// path. Throws if the asset doesn't exist in the bundle.
+  final Map<String, String> _roomImagePathCache = {};
+  Future<String> _resolveRoomImagePath(String assetPath) async {
+    final cached = _roomImagePathCache[assetPath];
+    if (cached != null && await File(cached).exists()) return cached;
+    final data = await rootBundle.load(assetPath);
+    final dir = await getTemporaryDirectory();
+    final filename = assetPath.split('/').last;
+    final file = File('${dir.path}/$filename');
+    await file.writeAsBytes(data.buffer.asUint8List(), flush: true);
+    _roomImagePathCache[assetPath] = file.path;
+    return file.path;
   }
 
   /// Records the live stream via Android MediaProjection (Plan B). Agora's
@@ -316,6 +369,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     if (_activeStream == null) return;
     final user = ref.read(authStateProvider).valueOrNull;
     final streamId = _activeStream!.id;
+    // Capture title locally — the editor pre-fills its caption field with it.
+    // Once setState clears _activeStream below it'd be gone.
+    final streamTitle = _activeStream!.title;
 
     // Stop the recorder BEFORE leaving the channel so the trailing frames
     // get flushed into the mp4 container. Capture the path locally because
@@ -355,7 +411,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     if (hasRecording) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => PostStreamEditorScreen(recordingPath: recordingPath),
+          builder: (_) => PostStreamEditorScreen(
+            recordingPath: recordingPath,
+            initialCaption: streamTitle,
+          ),
         ),
       );
     } else {
@@ -371,6 +430,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       context: context,
       backgroundColor: const Color(0xFF1A1A2E),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      // isScrollControlled lets the sheet grow past half-height so the
+      // keyboard's viewInsets.bottom padding doesn't overflow it. Without
+      // this the sheet is capped and you get the yellow stripe.
+      isScrollControlled: true,
       builder: (_) => _CoHostInviteSheet(
         streamId: _activeStream!.id,
         hostUsername: ref.read(currentUserProvider).valueOrNull?.username ?? '',
@@ -391,6 +454,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         onFilterChange: _changeFilter,
         onInvite: _inviteCoHost,
         onEnd: _stopStream,
+        remoteUid: _remoteUid,
       );
     }
 
@@ -573,6 +637,8 @@ class _BroadcastView extends ConsumerStatefulWidget {
   final ValueChanged<VideoFilter> onFilterChange;
   final VoidCallback onInvite;
   final VoidCallback onEnd;
+  /// Uid of the co-host's published stream, if any. Null = single broadcaster.
+  final int? remoteUid;
 
   const _BroadcastView({
     required this.stream,
@@ -583,6 +649,7 @@ class _BroadcastView extends ConsumerStatefulWidget {
     required this.onFilterChange,
     required this.onInvite,
     required this.onEnd,
+    this.remoteUid,
   });
 
   @override
@@ -620,30 +687,59 @@ class _BroadcastViewState extends ConsumerState<_BroadcastView> {
   ValueChanged<VideoFilter> get onFilterChange => widget.onFilterChange;
   VoidCallback get onInvite => widget.onInvite;
   VoidCallback get onEnd => widget.onEnd;
+  int? get remoteUid => widget.remoteUid;
+
+  /// Returns the camera view, wrapped in the active color grade if any. The
+  /// host's local view uses `uid: 0` (Agora's convention for "self") while a
+  /// remote view passes the co-host's assigned uid. The filter only applies
+  /// to the local view — the co-host's stream is shown unfiltered (their
+  /// device decides its own grade).
+  Widget _videoFor({required bool local}) {
+    final controller = local
+        ? _videoController
+        : VideoViewController.remote(
+            rtcEngine: widget.engine,
+            canvas: VideoCanvas(uid: widget.remoteUid),
+            connection: RtcConnection(channelId: widget.stream.agoraChannel),
+            useFlutterTexture: true,
+          );
+    final view = AgoraVideoView(controller: controller);
+    if (!local) return view;
+    final filter = VideoFilter.byId(filterId);
+    if (!filter.hasColorOverlay) return view;
+    return ColorFiltered(
+      colorFilter: ColorFilter.matrix(filter.colorMatrix!),
+      child: view,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final messages = ref.watch(danmakuMessagesProvider(stream.id));
     final streamAsync = ref.watch(singleStreamProvider(stream.id));
     final liveStream = streamAsync.valueOrNull ?? stream;
-    final filter = VideoFilter.byId(filterId);
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Camera preview, optionally wrapped in a color-grading filter.
-          // Beauty preset uses Agora's native skin smoothing (applied to the
-          // ENCODED stream so viewers see it too); color-grading presets are
-          // local-only via ColorFiltered (viewers see the unfiltered feed).
-          if (filter.hasColorOverlay)
-            ColorFiltered(
-              colorFilter: ColorFilter.matrix(filter.colorMatrix!),
-              child: AgoraVideoView(controller: _videoController),
-            )
-          else
-            AgoraVideoView(controller: _videoController),
+          // Camera preview. Always wrapped in a Row so the local view's
+          // position in the widget tree stays stable when a co-host joins.
+          // If we switched between top-level `_videoFor(local: true)` and
+          // `Row(Expanded(_videoFor(local: true)), ...)` on the fly, Flutter
+          // would dispose the AgoraVideoView's Element and the underlying
+          // Texture would render blank. The co-host tile is added inside the
+          // Row only when a remote uid is present.
+          Row(
+            children: [
+              Expanded(child: _videoFor(local: true)),
+              if (remoteUid != null) ...[
+                Container(width: 2, color: Colors.white24),
+                Expanded(child: _videoFor(local: false)),
+              ],
+            ],
+          ),
           DanmakuOverlay(messages: messages),
           GiftAnimationOverlay(streamId: stream.id),
           Positioned(
@@ -832,29 +928,36 @@ class _CoHostInviteSheetState extends ConsumerState<_CoHostInviteSheet> {
             onChanged: _search,
           ),
           const SizedBox(height: 8),
-          ..._results.map((user) => ListTile(
-            leading: CircleAvatar(
-              backgroundColor: Colors.grey[800],
-              backgroundImage: user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
-              child: user.avatarUrl == null ? const Icon(Icons.person, color: Colors.white54) : null,
+          // Flexible + ListView lets the result list scroll within whatever
+          // space remains after the header, text field, and keyboard inset.
+          Flexible(
+            child: ListView(
+              shrinkWrap: true,
+              children: _results.map((user) => ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: Colors.grey[800],
+                  backgroundImage: user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
+                  child: user.avatarUrl == null ? const Icon(Icons.person, color: Colors.white54) : null,
+                ),
+                title: Text('@${user.username}', style: const TextStyle(color: Colors.white)),
+                subtitle: Text(user.displayName, style: const TextStyle(color: Colors.white54)),
+                trailing: ElevatedButton(
+                  onPressed: () async {
+                    await widget.cohostService.inviteCoHost(
+                      streamId: widget.streamId,
+                      hostUsername: widget.hostUsername,
+                      targetUid: user.uid,
+                      targetUsername: user.username,
+                      targetAvatarUrl: user.avatarUrl,
+                    );
+                    if (context.mounted) Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: QBrand.primary),
+                  child: const Text('Invite'),
+                ),
+              )).toList(),
             ),
-            title: Text('@${user.username}', style: const TextStyle(color: Colors.white)),
-            subtitle: Text(user.displayName, style: const TextStyle(color: Colors.white54)),
-            trailing: ElevatedButton(
-              onPressed: () async {
-                await widget.cohostService.inviteCoHost(
-                  streamId: widget.streamId,
-                  hostUsername: widget.hostUsername,
-                  targetUid: user.uid,
-                  targetUsername: user.username,
-                  targetAvatarUrl: user.avatarUrl,
-                );
-                if (context.mounted) Navigator.pop(context);
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: QBrand.primary),
-              child: const Text('Invite'),
-            ),
-          )),
+          ),
         ],
       ),
     );

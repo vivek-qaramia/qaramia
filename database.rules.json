@@ -4,6 +4,7 @@
       "$streamId": {
         ".read": "auth != null",
         ".write": "auth != null",
+        ".indexOn": ["sentAt"],
         "$messageId": {
           ".validate": "newData.hasChildren(['authorUid', 'authorUsername', 'text', 'sentAt']) && newData.child('authorUid').val() === auth.uid"
         }

@@ -10,11 +10,10 @@ import { useAuthStore } from '@/store/auth-store';
 import { GiftType } from '@/lib/types';
 import { useGiftCatalog } from '@/hooks/use-gift-catalog';
 import { useWallet } from '@/hooks/use-wallet';
-import { RoomCompositorView, CompositorHandle } from '@/components/live/room-compositor-view';
 import { ProductDrawer } from '@/components/live/product-drawer';
 import { GiftAnimationOverlay } from '@/components/live/gift-animation-overlay';
 import { CaptionOverlay } from '@/components/live/caption-overlay';
-import AgoraRTC, { IAgoraRTCRemoteUser, ILocalAudioTrack } from 'agora-rtc-sdk-ng';
+import AgoraRTC, { ILocalAudioTrack, ICameraVideoTrack } from 'agora-rtc-sdk-ng';
 
 const AGORA_APP_ID = process.env.NEXT_PUBLIC_AGORA_APP_ID ?? '';
 
@@ -42,11 +41,17 @@ export default function LiveView({ streamId }: { streamId: string }) {
   }, [captionsOn]);
 
   const clientRef = useRef<ReturnType<typeof AgoraRTC.createClient> | null>(null);
-  const videoRef = useRef<HTMLDivElement>(null);
+  // Two slots so the viewer can render a 50/50 split when the host AND a
+  // co-host are both publishing. First broadcaster published lands in
+  // hostVideoRef; the second in cohostVideoRef. Cleared on user-unpublished.
+  const hostVideoRef = useRef<HTMLDivElement>(null);
+  const cohostVideoRef = useRef<HTMLDivElement>(null);
+  const remoteSlotsRef = useRef<Map<string | number, 'host' | 'cohost'>>(new Map());
+  const [cohostActive, setCohostActive] = useState(false);
   const coHostPreviewRef = useRef<HTMLDivElement>(null);
   const localVideoElRef = useRef<HTMLVideoElement | null>(null);
   const audioTrackRef = useRef<ILocalAudioTrack | null>(null);
-  const compositorRef = useRef<CompositorHandle | null>(null);
+  const localVideoTrackRef = useRef<ICameraVideoTrack | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const pendingInvite = usePendingCoHostInvite(user?.uid ?? '');
@@ -62,7 +67,10 @@ export default function LiveView({ streamId }: { streamId: string }) {
   useEffect(() => {
     // Only depend on the channel string (stable), not the whole stream object.
     // stream updates on every viewerCount/gift change which would cause rapid rejoin.
-    if (!agoraChannel || isCoHost) return;
+    // Do NOT depend on isCoHost — when the viewer accepts a co-host invite we
+    // role-switch on the existing client and keep using it. Re-running this
+    // effect would tear down the just-published broadcast.
+    if (!agoraChannel) return;
 
     const client = AgoraRTC.createClient({ mode: 'live', codec: 'vp8' });
     clientRef.current = client;
@@ -74,12 +82,28 @@ export default function LiveView({ streamId }: { streamId: string }) {
       if (left) return;
       try {
         await client.subscribe(remoteUser, mediaType);
-        if (mediaType === 'video' && videoRef.current) {
-          remoteUser.videoTrack?.play(videoRef.current);
+        if (mediaType !== 'video' || !remoteUser.videoTrack) return;
+        const slots = remoteSlotsRef.current;
+        let slot = slots.get(remoteUser.uid);
+        if (!slot) {
+          // First broadcaster fills the host tile; second fills the co-host
+          // tile. A third would have nowhere to go in v1 — silently skip
+          // and rely on the cohostActive split to remain consistent.
+          slot = [...slots.values()].includes('host') ? 'cohost' : 'host';
+          slots.set(remoteUser.uid, slot);
         }
+        const target = slot === 'host' ? hostVideoRef.current : cohostVideoRef.current;
+        if (target) remoteUser.videoTrack.play(target);
+        if (slot === 'cohost') setCohostActive(true);
       } catch (e: unknown) {
         if ((e as { code?: string })?.code !== 'OPERATION_ABORTED') console.error(e);
       }
+    });
+    client.on('user-unpublished', (remoteUser) => {
+      const slots = remoteSlotsRef.current;
+      const slot = slots.get(remoteUser.uid);
+      if (slot === 'cohost') setCohostActive(false);
+      slots.delete(remoteUser.uid);
     });
 
     client.join(AGORA_APP_ID, agoraChannel, null, null)
@@ -92,9 +116,13 @@ export default function LiveView({ streamId }: { streamId: string }) {
     return () => {
       left = true;
       updateDoc(doc(db, 'streams', streamId), { viewerCount: increment(-1) }).catch(() => {});
+      try { audioTrackRef.current?.stop(); audioTrackRef.current?.close(); } catch { /* track may be unstarted — ignore */ }
+      try { localVideoTrackRef.current?.stop(); localVideoTrackRef.current?.close(); } catch { /* track may be unstarted — ignore */ }
+      audioTrackRef.current = null;
+      localVideoTrackRef.current = null;
       client.leave().catch(() => {});
     };
-  }, [agoraChannel, streamId, isCoHost]);
+  }, [agoraChannel, streamId]);
 
   const handleAcceptInvite = async () => {
     if (!user || !stream) return;
@@ -105,24 +133,17 @@ export default function LiveView({ streamId }: { streamId: string }) {
       await client.setClientRole('host');
       const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
       audioTrackRef.current = audioTrack;
+      localVideoTrackRef.current = videoTrack;
 
+      // coHostPreviewRef is always mounted (hidden until isCoHost flips) so
+      // the ref is attached before we publish — see the JSX below.
       if (coHostPreviewRef.current) {
         videoTrack.play(coHostPreviewRef.current);
         const el = coHostPreviewRef.current.querySelector('video');
         if (el) localVideoElRef.current = el;
       }
 
-      if (stream.roomMode && compositorRef.current) {
-        const compositeStream = compositorRef.current.captureStream();
-        if (compositeStream) {
-          const compositeTrack = AgoraRTC.createCustomVideoTrack({
-            mediaStreamTrack: compositeStream.getVideoTracks()[0],
-          });
-          await client.publish([audioTrack, compositeTrack]);
-        }
-      } else {
-        await client.publish([audioTrack, videoTrack]);
-      }
+      await client.publish([audioTrack, videoTrack]);
 
       await setCoHostActive(streamId, user.uid);
       setIsCoHost(true);
@@ -230,18 +251,18 @@ export default function LiveView({ streamId }: { streamId: string }) {
           </div>
         )}
 
-        <div ref={videoRef} className="flex-1 bg-zinc-950" />
-
-        {isCoHost && stream.roomMode && (
-          <div className="absolute inset-0 z-10">
-            <RoomCompositorView
-              ref={compositorRef}
-              localVideoElement={localVideoElRef.current}
-              localUid={user?.uid ?? ''}
-              showControls={false}
-            />
-          </div>
-        )}
+        {/* Host + optional co-host video. Renders 50/50 side-by-side split
+            when either a remote co-host is publishing OR this viewer accepted
+            the co-host invite. Both right-side slots are always mounted (one
+            hidden) so refs are attached before we play any tracks into them. */}
+        <div className={`flex-1 bg-zinc-950 ${(cohostActive || isCoHost) ? 'flex flex-row' : ''}`}>
+          <div ref={hostVideoRef} className={(cohostActive || isCoHost) ? 'flex-1 min-w-0' : 'w-full h-full'} />
+          {(cohostActive || isCoHost) && <div className="w-0.5 bg-white/20 shrink-0" />}
+          {/* My own preview when I'm the co-host */}
+          <div ref={coHostPreviewRef} className={isCoHost ? 'flex-1 min-w-0' : 'hidden'} />
+          {/* Someone else's co-host video when I'm just watching */}
+          <div ref={cohostVideoRef} className={(cohostActive && !isCoHost) ? 'flex-1 min-w-0' : 'hidden'} />
+        </div>
 
         <div className="absolute top-4 left-4 flex items-center gap-3 z-10">
           <span className="px-3 py-1 bg-[#FF7043] text-white text-sm font-bold rounded-full animate-pulse">LIVE</span>
