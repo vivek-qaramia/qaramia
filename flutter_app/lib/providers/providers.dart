@@ -73,6 +73,12 @@ final giftsProvider =
   return ref.watch(streamServiceProvider).watchGifts(streamId);
 });
 
+// Top-gifter leaderboard
+final topGiftersProvider =
+    StreamProvider.family<List<TopGifter>, String>((ref, streamId) {
+  return ref.watch(streamServiceProvider).watchTopGifters(streamId);
+});
+
 // Video feed
 final videoFeedProvider = StreamProvider<List<Video>>((ref) {
   return ref.watch(videoServiceProvider).watchFeed();

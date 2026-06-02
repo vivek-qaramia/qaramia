@@ -17,6 +17,7 @@ import '../../widgets/gift_animation_overlay.dart';
 import '../../widgets/gift_panel.dart';
 import '../../widgets/product_drawer.dart';
 import '../../widgets/room_background_selector.dart';
+import '../../widgets/top_gifters_board.dart';
 import '../cart/my_bag_screen.dart';
 import '../wallet/wallet_screen.dart';
 
@@ -178,6 +179,7 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
         streamId: widget.stream.id,
         senderUid: user.uid,
         senderUsername: currentUser?.username ?? 'viewer',
+        senderAvatarUrl: currentUser?.avatarUrl,
         recipientUid: widget.stream.hostUid,
         giftType: effectiveGift,
       );
@@ -392,6 +394,12 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
                           ),
                         ),
                       ],
+                    ),
+                    // Top-gifter leaderboard, left-aligned just under the host bar.
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TopGiftersBoard(streamId: widget.stream.id),
                     ),
                   ],
                 ),

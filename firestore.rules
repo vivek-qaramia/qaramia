@@ -110,6 +110,14 @@ service cloud.firestore {
         allow create: if isAuthed() && request.resource.data.senderUid == request.auth.uid;
       }
 
+      // Per-stream gifter leaderboard aggregate. Each sender maintains their
+      // own row (doc id == their uid), incremented inside the sendGift
+      // transaction. Anyone may read to render the board.
+      match /gifters/{gifterUid} {
+        allow read: if true;
+        allow write: if isAuthed() && gifterUid == request.auth.uid;
+      }
+
       match /cohosts/{cohostUid} {
         allow read: if true;
         allow write: if isAuthed();

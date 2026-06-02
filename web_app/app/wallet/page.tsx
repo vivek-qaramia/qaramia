@@ -1,11 +1,23 @@
 'use client';
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/auth-store';
 import { useWallet, useCreatorBalance } from '@/hooks/use-wallet';
 import { CoinPackPicker } from '@/components/wallet/coin-pack-picker';
 
+// useSearchParams forces this subtree to render client-side, so it must sit
+// inside a Suspense boundary or the static prerender of /wallet bails out
+// (Next 16 build error: missing-suspense-with-csr-bailout).
 export default function WalletPage() {
+  return (
+    <Suspense>
+      <WalletContent />
+    </Suspense>
+  );
+}
+
+function WalletContent() {
   const { user } = useAuthStore();
   const { wallet, loading } = useWallet(user?.uid);
   const balance = useCreatorBalance(user?.uid);

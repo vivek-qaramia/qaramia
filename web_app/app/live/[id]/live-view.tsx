@@ -13,6 +13,7 @@ import { useWallet } from '@/hooks/use-wallet';
 import { ProductDrawer } from '@/components/live/product-drawer';
 import { GiftAnimationOverlay } from '@/components/live/gift-animation-overlay';
 import { CaptionOverlay } from '@/components/live/caption-overlay';
+import { TopGiftersBoard } from '@/components/live/top-gifters-board';
 import AgoraRTC, { ILocalAudioTrack, ICameraVideoTrack } from 'agora-rtc-sdk-ng';
 
 const AGORA_APP_ID = process.env.NEXT_PUBLIC_AGORA_APP_ID ?? '';
@@ -177,6 +178,8 @@ export default function LiveView({ streamId }: { streamId: string }) {
     const creatorBalRef   = doc(db, 'users', stream.hostUid, 'creatorBalance', 'default');
     const streamRef       = doc(db, 'streams', streamId);
     const giftEventRef    = doc(collection(db, 'streams', streamId, 'gifts'));
+    // Per-stream leaderboard aggregate — doc id is the sender's uid.
+    const gifterRef       = doc(db, 'streams', streamId, 'gifters', user.uid);
 
     try {
       await runTransaction(db, async (tx) => {
@@ -208,6 +211,14 @@ export default function LiveView({ streamId }: { streamId: string }) {
           recipientUid: stream.hostUid,
           sentAt: serverTimestamp(),
         });
+
+        tx.set(gifterRef, {
+          senderUid: user.uid,
+          username: user.username,
+          avatarUrl: user.avatarUrl ?? null,
+          totalCoins: increment(gift.coinCost),
+          lastGiftAt: serverTimestamp(),
+        }, { merge: true });
 
         tx.update(streamRef, { totalGifts: increment(gift.coinCost) });
       });
@@ -275,6 +286,11 @@ export default function LiveView({ streamId }: { streamId: string }) {
           {stream.roomMode && (
             <span className="px-3 py-1 bg-purple-600/80 text-white text-sm rounded-full">🏠 Room</span>
           )}
+        </div>
+
+        {/* Top-gifter leaderboard, under the status badges */}
+        <div className="absolute top-16 left-4 z-10">
+          <TopGiftersBoard streamId={streamId} />
         </div>
 
         <ProductDrawer products={stream.featuredProducts ?? []} featuredAd={stream.featuredAd} />

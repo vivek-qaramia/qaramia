@@ -91,3 +91,26 @@ class GiftEvent {
   GiftType? get giftType =>
       GiftType.catalog.where((g) => g.id == giftTypeId).firstOrNull;
 }
+
+/// One row of the per-stream gifter leaderboard
+/// (streams/{id}/gifters/{senderUid}).
+class TopGifter {
+  final String senderUid;
+  final String username;
+  final String? avatarUrl;
+  final int totalCoins;
+
+  const TopGifter({
+    required this.senderUid,
+    required this.username,
+    this.avatarUrl,
+    required this.totalCoins,
+  });
+
+  factory TopGifter.fromJson(Map<String, dynamic> json) => TopGifter(
+        senderUid: json['senderUid'] as String? ?? json['id'] as String? ?? '',
+        username: json['username'] as String? ?? 'viewer',
+        avatarUrl: json['avatarUrl'] as String?,
+        totalCoins: (json['totalCoins'] as num?)?.toInt() ?? 0,
+      );
+}

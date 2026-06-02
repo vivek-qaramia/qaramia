@@ -142,6 +142,7 @@ class StreamService {
     required String senderUsername,
     required String recipientUid,
     required GiftType giftType,
+    String? senderAvatarUrl,
     int quantity = 1,
   }) async {
     final totalCoins = giftType.coinCost * quantity;
@@ -153,6 +154,9 @@ class StreamService {
         .collection('creatorBalance').doc('default');
     final streamRef = _db.collection('streams').doc(streamId);
     final giftRef = streamRef.collection('gifts').doc(_uuid.v4());
+    // Per-stream leaderboard aggregate — doc id is the sender's uid so each
+    // viewer maintains a single ranked row.
+    final gifterRef = streamRef.collection('gifters').doc(senderUid);
 
     await _db.runTransaction((txn) async {
       final walletSnap = await txn.get(walletRef);
@@ -184,6 +188,18 @@ class StreamService {
         sentAt: DateTime.now(),
       );
       txn.set(giftRef, event.toJson());
+
+      // Free (fully-sponsored) gifts cost 0 coins, so they don't move the
+      // leaderboard — only coins actually spent count toward the rank.
+      if (totalCoins > 0) {
+        txn.set(gifterRef, {
+          'senderUid': senderUid,
+          'username': senderUsername,
+          if (senderAvatarUrl != null) 'avatarUrl': senderAvatarUrl,
+          'totalCoins': FieldValue.increment(totalCoins),
+          'lastGiftAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
 
       txn.update(streamRef, {'totalGifts': FieldValue.increment(totalCoins)});
     });
@@ -221,5 +237,34 @@ class StreamService {
         .map((snap) => snap.docs
             .map((d) => GiftEvent.fromJson({...d.data(), 'id': d.id}))
             .toList());
+  }
+
+  /// Live top-gifter leaderboard for a stream, ranked by coins spent.
+  Stream<List<TopGifter>> watchTopGifters(String streamId, {int limit = 10}) {
+    return _db
+        .collection('streams')
+        .doc(streamId)
+        .collection('gifters')
+        .orderBy('totalCoins', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((d) => TopGifter.fromJson({...d.data(), 'id': d.id}))
+            .toList());
+  }
+
+  /// The caller's own rank + total on a stream's leaderboard. Rank is
+  /// 1-based: one more than the number of gifters who have spent strictly
+  /// more coins. Returns null if the viewer hasn't gifted on this stream.
+  Future<({int rank, int totalCoins})?> myGifterRank(
+      String streamId, String uid) async {
+    final col =
+        _db.collection('streams').doc(streamId).collection('gifters');
+    final mine = await col.doc(uid).get();
+    if (!mine.exists) return null;
+    final myTotal = (mine.data()?['totalCoins'] as num?)?.toInt() ?? 0;
+    final higher =
+        await col.where('totalCoins', isGreaterThan: myTotal).count().get();
+    return (rank: (higher.count ?? 0) + 1, totalCoins: myTotal);
   }
 }

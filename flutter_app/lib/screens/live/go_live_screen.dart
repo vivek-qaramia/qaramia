@@ -21,6 +21,7 @@ import '../../widgets/gift_animation_overlay.dart';
 import '../../widgets/product_drawer.dart';
 import '../../widgets/room_background_selector.dart';
 import '../../widgets/session_earnings_card.dart';
+import '../../widgets/top_gifters_board.dart';
 import '../../providers/session_stats_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -801,6 +802,16 @@ class _BroadcastViewState extends ConsumerState<_BroadcastView> {
                     ),
                   ],
                 ),
+              ),
+            ),
+          ),
+          // Top-gifter leaderboard, just under the host status bar.
+          Positioned(
+            top: 0, left: 12,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 48),
+                child: TopGiftersBoard(streamId: stream.id),
               ),
             ),
           ),
