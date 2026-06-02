@@ -67,6 +67,7 @@ flutter_app/ios/Runner.xcodeproj/xcuserdata/
 
 # Flutter Android
 flutter_app/android/.gradle/
+flutter_app/android/.kotlin/
 flutter_app/android/local.properties
 flutter_app/android/captures/
 flutter_app/android/.idea/
