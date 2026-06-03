@@ -13,6 +13,7 @@ exports.validateGooglePurchase = iap.validateGooglePurchase;
 const connect = require('./connect');
 exports.createConnectAccount        = connect.createConnectAccount;
 exports.refreshConnectOnboardingLink = connect.refreshConnectOnboardingLink;
+exports.requestDiamondPayout        = connect.requestDiamondPayout;
 
 // Gift catalog seeding (idempotent rewrite of giftCatalog/* from the
 // canonical list in giftCatalog.js).

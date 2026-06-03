@@ -59,6 +59,14 @@ service cloud.firestore {
         allow read: if isOwner(uid);
         allow write: if false;
       }
+
+      // Diamond → USD payout ledger — written only by the requestDiamondPayout
+      // Cloud Function (Admin SDK bypasses rules). Owner reads their history;
+      // no client writes (the diamond debit must go through the function).
+      match /payouts/{payoutId} {
+        allow read: if isOwner(uid);
+        allow write: if false;
+      }
     }
 
     // Videos — public read so the feed loads without signing in
