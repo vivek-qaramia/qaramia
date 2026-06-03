@@ -8,7 +8,7 @@
 /// filename, bump ASSET_VERSION below. Browsers cache /public files by URL,
 /// so without a new query string everyone keeps seeing the old image until
 /// their cache expires. Bumping the version changes the URL → fresh fetch.
-const ASSET_VERSION = 2;
+const ASSET_VERSION = 3;
 const v = (path: string) => `${path}?v=${ASSET_VERSION}`;
 
 export interface RoomBackground {

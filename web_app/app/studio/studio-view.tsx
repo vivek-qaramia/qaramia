@@ -66,13 +66,14 @@ export default function StudioView() {
   const [roomMode, setRoomMode] = useState(false);
   const [selectedBgId, setSelectedBgId] = useState('modern_studio');
   const [roomPanelOpen, setRoomPanelOpen] = useState(false);
+  // Single VB processor, piped onto the preview camera track by the Room Mode
+  // toggle effect. That same track is what gets published, so this one
+  // processor composites the background for both preview and broadcast.
   const vbProcessorRef = useRef<IVirtualBackgroundProcessor | null>(null);
-  // The extension itself, kept so startStream can mint a SECOND processor for
-  // the published track. A processor instance is bound to one track for its
-  // lifetime — reusing the preview's processor on the published track throws
-  // a context-mismatch error.
-  const vbExtRef = useRef<VirtualBackgroundExtension | null>(null);
-  const vbPublishProcessorRef = useRef<IVirtualBackgroundProcessor | null>(null);
+  // Flips true once processor.init() resolves. The Room Mode toggle effect
+  // depends on it so it re-pipes when the processor becomes ready — otherwise
+  // toggling Room Mode before init finishes would silently never apply.
+  const [vbReady, setVbReady] = useState(false);
   const previewVideoTrackRef = useRef<ICameraVideoTrack | null>(null);
   const [filterId, setFilterId] = useState('none');
   const filterCanvasRef = useRef<FilterCanvas | null>(null);
@@ -136,14 +137,14 @@ export default function StudioView() {
   useEffect(() => {
     const ext = new VirtualBackgroundExtension();
     AgoraRTC.registerExtensions([ext]);
-    vbExtRef.current = ext;
     const processor = ext.createProcessor();
     processor.init().then(() => {
       vbProcessorRef.current = processor;
+      setVbReady(true);
     }).catch((e) => console.warn('VB extension init failed', e));
     return () => {
       vbProcessorRef.current = null;
-      vbExtRef.current = null;
+      setVbReady(false);
       try { processor.disable(); } catch { /* extension teardown — ignore */ }
     };
   }, []);
@@ -181,6 +182,10 @@ export default function StudioView() {
       }
       return;
     }
+    // Guard against a superseded run (deps changed mid-await) piping after a
+    // newer run already unpiped — without this the async pipe could land after
+    // teardown and leave the track in the wrong state.
+    let cancelled = false;
     // Async because the JPG has to be fetched + decoded before the processor
     // can use it. We fall back to a solid colour if the image fails to load
     // (e.g. file missing in dev) so the host still gets a noticeable change.
@@ -188,11 +193,14 @@ export default function StudioView() {
       const bg = ROOM_BACKGROUNDS.find((b) => b.id === selectedBgId) ?? ROOM_BACKGROUNDS[0];
       try {
         const img = await loadRoomImage(bg.imageUrl);
+        if (cancelled) return;
         processor.setOptions({ type: 'img', source: img });
       } catch (e) {
+        if (cancelled) return;
         console.warn(`Room image failed (${bg.imageUrl}), falling back to colour`, e);
         processor.setOptions({ type: 'color', color: bg.color });
       }
+      if (cancelled) return;
       try {
         processor.enable();
         track.pipe(processor).pipe(track.processorDestination);
@@ -200,7 +208,8 @@ export default function StudioView() {
         console.warn('Room Mode toggle failed', e);
       }
     })();
-  }, [roomMode, selectedBgId]);
+    return () => { cancelled = true; };
+  }, [roomMode, selectedBgId, vbReady]);
 
 
   useEffect(() => {
@@ -425,21 +434,28 @@ export default function StudioView() {
 
       const preset = QUALITY_PRESETS[qualityPreset];
 
-      let audioTrack: ILocalAudioTrack;
-      let videoTrackFromAgora: Awaited<ReturnType<typeof AgoraRTC.createCameraVideoTrack>> | null = null;
-      {
-        const tracks = await AgoraRTC.createMicrophoneAndCameraTracks({}, {
-          encoderConfig: {
+      // Microphone is always a fresh track. The video track is REUSED from the
+      // preview (previewVideoTrackRef) rather than creating a second camera +
+      // second VB processor. Agora's segmentation backend behaves like a
+      // singleton — a second processor enables and pipes successfully but
+      // passes frames through unmodified, so viewers saw the raw camera. One
+      // camera + one processor (already piped by the Room Mode toggle effect)
+      // is what actually composites the background onto the published stream.
+      const audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+      audioTrackRef.current = audioTrack;
+
+      const videoTrack = previewVideoTrackRef.current;
+      if (videoTrack) {
+        try {
+          await videoTrack.setEncoderConfiguration({
             width: preset.width, height: preset.height,
             frameRate: preset.frameRate,
             bitrateMax: preset.bitrateMax, bitrateMin: preset.bitrateMin,
-          },
-        });
-        audioTrack = tracks[0];
-        videoTrackFromAgora = tracks[1];
+          });
+        } catch (e) {
+          console.warn('setEncoderConfiguration failed', e);
+        }
       }
-
-      audioTrackRef.current = audioTrack;
 
       const rawMicStream = new MediaStream([audioTrack.getMediaStreamTrack()]);
       const audioPipeline = new AudioEffectPipeline(rawMicStream);
@@ -451,44 +467,20 @@ export default function StudioView() {
 
       const customTrackOpts = { bitrateMax: preset.bitrateMax, bitrateMin: preset.bitrateMin, frameRate: preset.frameRate };
 
-      // Composite the room background onto the PUBLISHED track when Room Mode
-      // is active. We mint a dedicated processor here rather than reuse the
-      // preview's — a VB processor is bound to a single track for its
-      // lifetime, so the preview-track processor can't be re-piped onto this
-      // one (it throws a context-mismatch error). The image is already cached
-      // from the preview path so loadRoomImage resolves instantly.
-      const ext = vbExtRef.current;
-      if (roomMode && ext && videoTrackFromAgora) {
-        try {
-          const pubProcessor = ext.createProcessor();
-          await pubProcessor.init();
-          vbPublishProcessorRef.current = pubProcessor;
-          const bg = ROOM_BACKGROUNDS.find((b) => b.id === selectedBgId) ?? ROOM_BACKGROUNDS[0];
-          try {
-            const img = await loadRoomImage(bg.imageUrl);
-            pubProcessor.setOptions({ type: 'img', source: img });
-          } catch (e) {
-            console.warn(`Room image failed for publish (${bg.imageUrl})`, e);
-            pubProcessor.setOptions({ type: 'color', color: bg.color });
-          }
-          pubProcessor.enable();
-          videoTrackFromAgora.pipe(pubProcessor).pipe(videoTrackFromAgora.processorDestination);
-        } catch (e) {
-          console.warn('Room Mode publish wiring failed', e);
-        }
-      }
-
       const selectedFilter = VIDEO_FILTERS.find((f) => f.id === filterId);
       if (selectedFilter && selectedFilter.css !== 'none' && localVideoElRef.current) {
+        // Filter path: capture the preview <video> element — which already
+        // shows the VB-composited frames when Room Mode is on — through the
+        // filter canvas, so a filter and Room Mode compose correctly.
         const fc = new FilterCanvas(localVideoElRef.current);
         fc.setFilter(selectedFilter);
         fc.start();
         filterCanvasRef.current = fc;
         const filteredTrack = AgoraRTC.createCustomVideoTrack({ mediaStreamTrack: fc.captureStream(preset.frameRate).getVideoTracks()[0], ...customTrackOpts });
         await client.publish([effectiveAudioTrack, filteredTrack]);
-      } else if (videoTrackFromAgora) {
-        if (previewRef.current) videoTrackFromAgora.play(previewRef.current);
-        await client.publish([effectiveAudioTrack, videoTrackFromAgora]);
+      } else if (videoTrack) {
+        if (previewRef.current) videoTrack.play(previewRef.current);
+        await client.publish([effectiveAudioTrack, videoTrack]);
       }
 
       setStreamId(docRef.id);
@@ -505,8 +497,6 @@ export default function StudioView() {
     audioTrackRef.current?.stop(); audioTrackRef.current?.close();
     filterCanvasRef.current?.stop(); filterCanvasRef.current = null;
     audioEffectRef.current?.close(); audioEffectRef.current = null;
-    try { vbPublishProcessorRef.current?.disable(); } catch { /* processor torn down with the track — ignore */ }
-    vbPublishProcessorRef.current = null;
     await clientRef.current?.leave();
     await updateDoc(doc(db, 'streams', streamId), { status: 'ended', endedAt: serverTimestamp() });
 

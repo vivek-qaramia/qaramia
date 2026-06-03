@@ -152,16 +152,17 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       debugPrint('[GoLive] enableVideo done (camera permission prompt may have shown)');
       await _engine!.setClientRole(role: ClientRoleType.clientRoleBroadcaster);
 
-      if (_roomMode) {
-        await _applyVirtualBackground(_selectedBgId);
-      }
-
       await _engine!.startPreview();
       debugPrint('[GoLive] startPreview done');
 
-      // Beauty options require the video pipeline to be running, so this must
-      // happen AFTER startPreview. Failures are non-fatal — better to go live
-      // without the filter than to abort the broadcast.
+      // Both virtual background and beauty/filter options operate on the
+      // running capture pipeline, so they must be applied AFTER startPreview.
+      // Called earlier, enableVirtualBackground returns an error and silently
+      // no-ops — the background never appears. Failures here are non-fatal:
+      // better to go live plain than to abort the broadcast.
+      if (_roomMode) {
+        await _applyVirtualBackground(_selectedBgId);
+      }
       await _applyFilterToEngine(VideoFilter.byId(_filterId));
 
       // Kick off local recording only after onJoinChannelSuccess — the channel
