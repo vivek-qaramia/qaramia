@@ -4,13 +4,16 @@ import Link from 'next/link';
 import { useSingleStream, useDanmaku } from '@/hooks/use-live-stream';
 import { useCohosts, usePendingCoHostInvite, acceptCoHostInvite, setCoHostActive, declineCoHostInvite } from '@/hooks/use-cohosts';
 import { db, rtdb } from '@/lib/firebase';
-import { doc, updateDoc, increment, collection, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, increment, collection, runTransaction, serverTimestamp, setDoc } from 'firebase/firestore';
 import { ref as rtdbRef, push } from 'firebase/database';
 import { useAuthStore } from '@/store/auth-store';
-import { GiftType } from '@/lib/types';
+import { GiftType, Sponsorship, sponsorshipApplies, viewerCoinCost } from '@/lib/types';
 import { useGiftCatalog } from '@/hooks/use-gift-catalog';
+import { useActiveSponsorships } from '@/hooks/use-sponsorships';
 import { useWallet } from '@/hooks/use-wallet';
 import { ProductDrawer } from '@/components/live/product-drawer';
+import { GiftPanel } from '@/components/live/gift-panel';
+import { GiftGoalBar } from '@/components/live/gift-goal-bar';
 import { GiftAnimationOverlay } from '@/components/live/gift-animation-overlay';
 import { CaptionOverlay } from '@/components/live/caption-overlay';
 import { TopGiftersBoard } from '@/components/live/top-gifters-board';
@@ -31,6 +34,7 @@ export default function LiveView({ streamId }: { streamId: string }) {
   const [captionsOn, setCaptionsOn] = useState(true);
   const { wallet } = useWallet(user?.uid);
   const giftCatalog = useGiftCatalog();
+  const sponsorships = useActiveSponsorships();
 
   // Persist caption preference per-viewer
   useEffect(() => {
@@ -166,10 +170,13 @@ export default function LiveView({ streamId }: { streamId: string }) {
     });
   };
 
-  const sendGift = async (gift: GiftType) => {
+  const sendGift = async (gift: GiftType, sponsorship?: Sponsorship) => {
     if (!user || !stream) return;
-    if (wallet.coins < gift.coinCost) {
-      setInsufficientCoins(gift.coinCost - wallet.coins);
+    // Sponsored gifts may be discounted or free — the viewer is charged the
+    // effective price, but the creator still earns the standard diamond yield.
+    const cost = sponsorship ? viewerCoinCost(sponsorship, gift.coinCost) : gift.coinCost;
+    if (wallet.coins < cost) {
+      setInsufficientCoins(cost - wallet.coins);
       return;
     }
     setShowGifts(false);
@@ -185,14 +192,16 @@ export default function LiveView({ streamId }: { streamId: string }) {
       await runTransaction(db, async (tx) => {
         const walletSnap = await tx.get(walletRef);
         const current = walletSnap.exists() ? (walletSnap.data().coins as number) : 0;
-        if (current < gift.coinCost) {
+        if (current < cost) {
           throw new Error('INSUFFICIENT_COINS');
         }
 
-        tx.set(walletRef, {
-          coins: increment(-gift.coinCost),
-          updatedAt: serverTimestamp(),
-        }, { merge: true });
+        if (cost > 0) {
+          tx.set(walletRef, {
+            coins: increment(-cost),
+            updatedAt: serverTimestamp(),
+          }, { merge: true });
+        }
 
         tx.set(creatorBalRef, {
           diamonds: increment(gift.diamondYield),
@@ -204,24 +213,43 @@ export default function LiveView({ streamId }: { streamId: string }) {
           giftId: gift.id,
           giftName: gift.name,
           giftEmoji: gift.emoji,
-          coinCost: gift.coinCost,
+          coinCost: cost,
           diamondYield: gift.diamondYield,
           senderUid: user.uid,
           senderUsername: user.username,
           recipientUid: stream.hostUid,
+          sponsorshipId: sponsorship?.id ?? null,
           sentAt: serverTimestamp(),
         });
 
-        tx.set(gifterRef, {
-          senderUid: user.uid,
-          username: user.username,
-          avatarUrl: user.avatarUrl ?? null,
-          totalCoins: increment(gift.coinCost),
-          lastGiftAt: serverTimestamp(),
-        }, { merge: true });
+        // Leaderboard ranks coins actually spent, so skip free gifts.
+        if (cost > 0) {
+          tx.set(gifterRef, {
+            senderUid: user.uid,
+            username: user.username,
+            avatarUrl: user.avatarUrl ?? null,
+            totalCoins: increment(cost),
+            lastGiftAt: serverTimestamp(),
+          }, { merge: true });
+        }
 
-        tx.update(streamRef, { totalGifts: increment(gift.coinCost) });
+        tx.update(streamRef, { totalGifts: increment(cost) });
       });
+
+      // Bill the sponsoring brand for this send (best-effort, after the gift
+      // transaction succeeds). Mirrors Flutter SponsorshipService.recordSend.
+      if (sponsorship) {
+        const perSend = sponsorship.perSendRateUsd ?? sponsorship.creatorPayoutUsd ?? 0;
+        const sendRef = doc(collection(db, 'sponsorships', sponsorship.id, 'sends'));
+        setDoc(sendRef, {
+          streamId, streamerUid: stream.hostUid, senderUid: user.uid,
+          brandCostUsd: perSend, sentAt: serverTimestamp(),
+        }).catch(() => {});
+        updateDoc(doc(db, 'sponsorships', sponsorship.id), {
+          totalSendCount: increment(1),
+          totalBrandSpendUsd: increment(perSend),
+        }).catch(() => {});
+      }
 
       // Fan out to danmaku chat after the transaction succeeds
       await push(rtdbRef(rtdb, `danmaku/${streamId}`), {
@@ -230,7 +258,7 @@ export default function LiveView({ streamId }: { streamId: string }) {
       });
     } catch (err) {
       if (err instanceof Error && err.message === 'INSUFFICIENT_COINS') {
-        setInsufficientCoins(gift.coinCost - wallet.coins);
+        setInsufficientCoins(cost - wallet.coins);
       } else {
         console.error('Gift send failed', err);
       }
@@ -244,6 +272,26 @@ export default function LiveView({ streamId }: { streamId: string }) {
       </div>
     );
   }
+
+  // Sponsorships that apply to THIS stream — gated by streamer UID and the
+  // keywords/categories of any products currently featured (mirrors Flutter's
+  // GiftPanel filtering).
+  const productKeywords: string[] = [];
+  const productCategories: string[] = [];
+  for (const p of stream.featuredProducts ?? []) {
+    for (const field of [p.brand, p.name]) {
+      if (!field) continue;
+      productKeywords.push(...field.toLowerCase().split(/[\s,]+/).filter((t) => t.length > 1));
+    }
+    if (p.category) productCategories.push(p.category);
+  }
+  const applicableSponsorships = sponsorships.filter((s) =>
+    sponsorshipApplies(s, {
+      streamerUid: stream.hostUid,
+      keywords: productKeywords,
+      categories: productCategories,
+    }),
+  );
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)] bg-black">
@@ -288,8 +336,9 @@ export default function LiveView({ streamId }: { streamId: string }) {
           )}
         </div>
 
-        {/* Top-gifter leaderboard, under the status badges */}
-        <div className="absolute top-16 left-4 z-10">
+        {/* Gift goal + top-gifter leaderboard, under the status badges */}
+        <div className="absolute top-16 left-4 z-10 space-y-2">
+          <GiftGoalBar stream={stream} />
           <TopGiftersBoard streamId={streamId} />
         </div>
 
@@ -340,22 +389,12 @@ export default function LiveView({ streamId }: { streamId: string }) {
               <p className="text-xs text-white/40 font-semibold uppercase tracking-wider">Send a Gift</p>
               <span className="text-xs text-white/60">🪙 {wallet.coins.toLocaleString()}</span>
             </div>
-            <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto">
-              {giftCatalog.map((gift) => {
-                const affordable = wallet.coins >= gift.coinCost;
-                return (
-                  <button key={gift.id} onClick={() => sendGift(gift)}
-                    className={`flex flex-col items-center p-2 rounded-xl transition w-16 ${
-                      affordable ? 'bg-white/10 hover:bg-white/20' : 'bg-white/5 opacity-50'
-                    }`}
-                    title={affordable ? gift.name : `Need ${gift.coinCost - wallet.coins} more coins`}>
-                    <span className="text-2xl">{gift.emoji}</span>
-                    <span className="text-[10px] text-white/50 mt-1">{gift.name}</span>
-                    <span className="text-[10px] text-yellow-400">🪙{gift.coinCost}</span>
-                  </button>
-                );
-              })}
-            </div>
+            <GiftPanel
+              catalog={giftCatalog}
+              sponsorships={applicableSponsorships}
+              coins={wallet.coins}
+              onSelect={sendGift}
+            />
           </div>
         )}
 

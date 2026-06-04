@@ -24,10 +24,18 @@ const admin = require('firebase-admin');
 const RETURN_URL = 'https://qaramia.com/connect/return';
 const REFRESH_URL = 'https://qaramia.com/connect/refresh';
 
-// Diamond → USD conversion + payout floor. Mirrors CreatorBalance in the
-// Flutter app (1 Diamond = $0.01) and the "5,000 minimum" shown in the UI.
-const DIAMOND_USD_RATE = 0.01;
+// Diamond → USD payout floor (5,000 💎 minimum, matches the UI).
 const MIN_PAYOUT_DIAMONDS = 5000;
+
+// Tiered creator share: a creator's diamond→USD rate improves with their
+// lifetime diamond volume. Mirrored client-side for display in
+// flutter_app/lib/models/wallet.dart and web_app/lib/types.ts — keep in sync.
+function creatorTier(lifetimeDiamonds) {
+  const d = lifetimeDiamonds || 0;
+  if (d >= 1000000) return { name: 'Elite', rate: 0.014 };
+  if (d >= 100000) return { name: 'Partner', rate: 0.012 };
+  return { name: 'Rising', rate: 0.010 };
+}
 
 function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -128,8 +136,8 @@ exports.refreshConnectOnboardingLink = functions
 
 /**
  * Cash out the creator's FULL diamond balance to their connected Stripe
- * account. Diamonds → USD at DIAMOND_USD_RATE, with a MIN_PAYOUT_DIAMONDS
- * floor.
+ * account. Diamonds → USD at the creator's tier rate (see creatorTier), with
+ * a MIN_PAYOUT_DIAMONDS floor.
  *
  * Ordering is debit-first so a double-tap / concurrent call can't double-spend:
  *   1. In a Firestore transaction, zero out diamonds and write a `pending`
@@ -170,24 +178,29 @@ exports.requestDiamondPayout = functions
     }
 
     // 1. Debit-first transaction: zero the balance + write a pending ledger row.
+    //    The diamond→USD rate is set by the creator's tier (lifetime volume).
     const payoutRef = userRef.collection('payouts').doc();
     let burned = 0;
+    let tier = creatorTier(0);
     await db.runTransaction(async (tx) => {
       const balSnap = await tx.get(balRef);
-      const diamonds = (balSnap.data() && balSnap.data().diamonds) || 0;
+      const bal = balSnap.data() || {};
+      const diamonds = bal.diamonds || 0;
       if (diamonds < MIN_PAYOUT_DIAMONDS) {
         throw new functions.https.HttpsError('failed-precondition',
-          `Minimum payout is ${MIN_PAYOUT_DIAMONDS} diamonds ` +
-          `($${(MIN_PAYOUT_DIAMONDS * DIAMOND_USD_RATE).toFixed(2)}).`);
+          `Minimum payout is ${MIN_PAYOUT_DIAMONDS} diamonds.`);
       }
       burned = diamonds;
+      tier = creatorTier(bal.lifetimeDiamonds || 0);
       tx.update(balRef, {
         diamonds: 0,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
       tx.set(payoutRef, {
         diamondsBurned: burned,
-        usdAmount: +(burned * DIAMOND_USD_RATE).toFixed(2),
+        usdAmount: +(burned * tier.rate).toFixed(2),
+        usdRatePerDiamond: tier.rate,
+        creatorTier: tier.name,
         stripeAccountId: accountId,
         status: 'pending',
         transferId: null,
@@ -199,7 +212,7 @@ exports.requestDiamondPayout = functions
 
     // 2. Move funds platform → connected account. Their payout schedule then
     //    settles to their bank.
-    const amountCents = Math.round(burned * DIAMOND_USD_RATE * 100);
+    const amountCents = Math.round(burned * tier.rate * 100);
     try {
       const transfer = await stripe.transfers.create({
         amount: amountCents,
@@ -216,7 +229,8 @@ exports.requestDiamondPayout = functions
         ok: true,
         payoutId: payoutRef.id,
         diamondsBurned: burned,
-        usdAmount: +(burned * DIAMOND_USD_RATE).toFixed(2),
+        usdAmount: +(burned * tier.rate).toFixed(2),
+        creatorTier: tier.name,
         transferId: transfer.id,
       };
     } catch (err) {

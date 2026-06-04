@@ -18,6 +18,7 @@ import '../../widgets/captions_controller.dart';
 import '../../widgets/danmaku_overlay.dart';
 import '../../widgets/filter_picker.dart';
 import '../../widgets/gift_animation_overlay.dart';
+import '../../widgets/gift_goal_bar.dart';
 import '../../widgets/product_drawer.dart';
 import '../../widgets/room_background_selector.dart';
 import '../../widgets/session_earnings_card.dart';
@@ -36,6 +37,8 @@ class GoLiveScreen extends ConsumerStatefulWidget {
 
 class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   final _titleCtrl = TextEditingController();
+  final _goalLabelCtrl = TextEditingController();
+  final _goalTargetCtrl = TextEditingController();
   String _category = 'General';
   bool _isStreaming = false;
   bool _starting = false;
@@ -82,6 +85,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   @override
   void dispose() {
     _titleCtrl.dispose();
+    _goalLabelCtrl.dispose();
+    _goalTargetCtrl.dispose();
     if (_isStreaming && _activeStream != null) {
       _stopStream();
     } else if (_engine != null) {
@@ -126,12 +131,16 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     setState(() => _starting = true);
     try {
       debugPrint('[GoLive] creating Firestore stream doc');
+      final goalTarget = int.tryParse(_goalTargetCtrl.text.trim()) ?? 0;
+      final goalLabel = _goalLabelCtrl.text.trim();
       final stream = await ref.read(streamServiceProvider).startStream(
         hostUid: user.uid,
         hostUsername: currentUser.username,
         hostAvatarUrl: currentUser.avatarUrl,
         title: title,
         category: _category,
+        giftGoalLabel: goalTarget > 0 && goalLabel.isNotEmpty ? goalLabel : null,
+        giftGoalTarget: goalTarget,
       );
       debugPrint('[GoLive] stream doc created id=${stream.id}');
 
@@ -507,6 +516,49 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             ),
             const SizedBox(height: 24),
 
+            // Gift goal (optional) — label + coin target. Shows a progress bar
+            // to viewers once live.
+            const Text('Gift Goal (optional)',
+                style: TextStyle(color: QBrand.fgMute, fontSize: 12)),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: TextField(
+                    controller: _goalLabelCtrl,
+                    style: const TextStyle(color: QBrand.fg),
+                    decoration: InputDecoration(
+                      hintText: 'e.g. New mic',
+                      hintStyle: const TextStyle(color: QBrand.fgDim),
+                      filled: true,
+                      fillColor: QBrand.cardAlt,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 2,
+                  child: TextField(
+                    controller: _goalTargetCtrl,
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(color: QBrand.fg),
+                    decoration: InputDecoration(
+                      hintText: '🪙 target',
+                      hintStyle: const TextStyle(color: QBrand.fgDim),
+                      filled: true,
+                      fillColor: QBrand.cardAlt,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
             // Room Mode toggle
             Container(
               padding: const EdgeInsets.all(16),
@@ -806,13 +858,22 @@ class _BroadcastViewState extends ConsumerState<_BroadcastView> {
               ),
             ),
           ),
-          // Top-gifter leaderboard, just under the host status bar.
+          // Gift goal progress + top-gifter leaderboard, under the status bar.
           Positioned(
-            top: 0, left: 12,
+            top: 0, left: 12, right: 12,
             child: SafeArea(
               child: Padding(
                 padding: const EdgeInsets.only(top: 48),
-                child: TopGiftersBoard(streamId: stream.id),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (liveStream.hasGiftGoal) ...[
+                      GiftGoalBar(stream: liveStream),
+                      const SizedBox(height: 8),
+                    ],
+                    TopGiftersBoard(streamId: stream.id),
+                  ],
+                ),
               ),
             ),
           ),

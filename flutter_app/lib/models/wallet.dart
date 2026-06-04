@@ -41,8 +41,23 @@ class CreatorBalance {
             : null,
       );
 
-  /// At the default Standard creator tier (1 Diamond = $0.01 USD).
-  double get estimatedCashoutUsd => diamonds * 0.01;
+  /// Tiered creator share — the diamond→USD rate improves with lifetime
+  /// volume. Must match creatorTier() in functions/src/connect.js (server is
+  /// authoritative; this is for display only).
+  String get tierName {
+    if (lifetimeDiamonds >= 1000000) return 'Elite';
+    if (lifetimeDiamonds >= 100000) return 'Partner';
+    return 'Rising';
+  }
+
+  double get usdRatePerDiamond {
+    if (lifetimeDiamonds >= 1000000) return 0.014;
+    if (lifetimeDiamonds >= 100000) return 0.012;
+    return 0.010;
+  }
+
+  /// Estimated cash value of the current balance at this creator's tier rate.
+  double get estimatedCashoutUsd => diamonds * usdRatePerDiamond;
 }
 
 /// A coin pack purchasable via IAP (App Store / Google Play) or Stripe (web).

@@ -43,6 +43,8 @@ class StreamService {
     String? hostAvatarUrl,
     required String title,
     required String category,
+    String? giftGoalLabel,
+    int giftGoalTarget = 0,
   }) async {
     final id = _uuid.v4();
     final stream = LiveStream(
@@ -53,6 +55,8 @@ class StreamService {
       title: title,
       category: category,
       agoraChannel: id,
+      giftGoalLabel: giftGoalLabel,
+      giftGoalTarget: giftGoalTarget,
       startedAt: DateTime.now(),
     );
     await _db.collection('streams').doc(id).set(stream.toJson());

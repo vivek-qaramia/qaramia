@@ -20,6 +20,9 @@ class LiveStream {
   final bool roomMode;
   final DateTime startedAt;
   final DateTime? endedAt;
+  // ── Gift goal — host-set coin target; progress = totalGifts / target ──────
+  final String? giftGoalLabel;
+  final int giftGoalTarget; // 0 = no goal
   // ── Live commerce surface (multimodal product detection) ──────────────────
   final List<ProductInfo> featuredProducts;
   final Ad? featuredAd;
@@ -40,9 +43,15 @@ class LiveStream {
     this.roomMode = false,
     required this.startedAt,
     this.endedAt,
+    this.giftGoalLabel,
+    this.giftGoalTarget = 0,
     this.featuredProducts = const [],
     this.featuredAd,
   });
+
+  bool get hasGiftGoal => giftGoalTarget > 0;
+  double get giftGoalProgress =>
+      giftGoalTarget > 0 ? (totalGifts / giftGoalTarget).clamp(0.0, 1.0) : 0.0;
 
   factory LiveStream.fromJson(Map<String, dynamic> json) => LiveStream(
         id: json['id'] as String,
@@ -61,6 +70,8 @@ class LiveStream {
         ),
         agoraChannel: json['agoraChannel'] as String,
         roomMode: json['roomMode'] as bool? ?? false,
+        giftGoalLabel: json['giftGoalLabel'] as String?,
+        giftGoalTarget: (json['giftGoalTarget'] as num?)?.toInt() ?? 0,
         startedAt: (json['startedAt'] as Timestamp).toDate(),
         endedAt: json['endedAt'] != null
             ? (json['endedAt'] as Timestamp).toDate()
@@ -91,6 +102,8 @@ class LiveStream {
         'status': status.name,
         'agoraChannel': agoraChannel,
         'roomMode': roomMode,
+        if (giftGoalLabel != null) 'giftGoalLabel': giftGoalLabel,
+        'giftGoalTarget': giftGoalTarget,
         'startedAt': Timestamp.fromDate(startedAt),
         'endedAt': endedAt != null ? Timestamp.fromDate(endedAt!) : null,
         'featuredProducts': featuredProducts.map((p) => p.toJson()).toList(),

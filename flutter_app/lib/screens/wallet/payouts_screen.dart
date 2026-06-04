@@ -31,8 +31,8 @@ class _PayoutsScreenState extends ConsumerState<PayoutsScreen> {
   bool _cashingOut = false;
   String? _payoutSuccess;
 
-  Future<void> _cashOut(int diamonds) async {
-    final usd = (diamonds * 0.01).toStringAsFixed(2);
+  Future<void> _cashOut(int diamonds, double rate) async {
+    final usd = (diamonds * rate).toStringAsFixed(2);
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -94,6 +94,7 @@ class _PayoutsScreenState extends ConsumerState<PayoutsScreen> {
     final balance = ref.watch(creatorBalanceProvider(user.uid)).valueOrNull;
     final status = user.stripeAccountStatus ?? 'not_started';
     final diamonds = balance?.diamonds ?? 0;
+    final rate = balance?.usdRatePerDiamond ?? 0.01;
     final canCashOut = status == 'active' && diamonds >= _minPayoutDiamonds;
 
     return Scaffold(
@@ -129,9 +130,12 @@ class _PayoutsScreenState extends ConsumerState<PayoutsScreen> {
                     ],
                   ),
                   const SizedBox(height: 6),
-                  const Text(
-                    'Standard creator tier: 1 Diamond = \$0.01 USD. Minimum payout 5,000 Diamonds (\$50).',
-                    style: TextStyle(color: QBrand.fgMute, fontSize: 11),
+                  Text(
+                    '${balance?.tierName ?? 'Rising'} tier: 1 Diamond = '
+                    '\$${(balance?.usdRatePerDiamond ?? 0.01).toStringAsFixed(3)} USD. '
+                    'Minimum payout $_minPayoutDiamonds Diamonds. Higher lifetime '
+                    'volume unlocks better rates (Partner, Elite).',
+                    style: const TextStyle(color: QBrand.fgMute, fontSize: 11),
                   ),
                 ],
               ),
@@ -151,14 +155,14 @@ class _PayoutsScreenState extends ConsumerState<PayoutsScreen> {
                 width: double.infinity,
                 height: 48,
                 child: FilledButton.icon(
-                  onPressed: _cashingOut ? null : () => _cashOut(diamonds),
+                  onPressed: _cashingOut ? null : () => _cashOut(diamonds, rate),
                   style: FilledButton.styleFrom(backgroundColor: Colors.green.shade600),
                   icon: _cashingOut
                       ? const SizedBox(width: 18, height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                       : const Icon(Icons.payments_outlined),
                   label: Text(
-                    'Cash out $diamonds 💎  →  \$${(diamonds * 0.01).toStringAsFixed(2)}',
+                    'Cash out $diamonds 💎  →  \$${(diamonds * rate).toStringAsFixed(2)}',
                     style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
                 ),

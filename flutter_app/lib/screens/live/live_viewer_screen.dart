@@ -15,6 +15,7 @@ import '../../widgets/caption_overlay.dart';
 import '../../widgets/danmaku_overlay.dart';
 import '../../widgets/gift_animation_overlay.dart';
 import '../../widgets/gift_panel.dart';
+import '../../widgets/gift_goal_bar.dart';
 import '../../widgets/product_drawer.dart';
 import '../../widgets/room_background_selector.dart';
 import '../../widgets/top_gifters_board.dart';
@@ -395,7 +396,11 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
                         ),
                       ],
                     ),
-                    // Top-gifter leaderboard, left-aligned just under the host bar.
+                    // Gift goal progress + top-gifter leaderboard under the bar.
+                    if (liveStream.hasGiftGoal) ...[
+                      const SizedBox(height: 8),
+                      GiftGoalBar(stream: liveStream),
+                    ],
                     const SizedBox(height: 8),
                     Align(
                       alignment: Alignment.centerLeft,

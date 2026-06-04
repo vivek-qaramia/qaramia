@@ -13,6 +13,7 @@ import { CohostInvite } from '@/components/live/cohost-invite';
 import { FilterPicker } from '@/components/live/filter-picker';
 import { AudioEffectPicker } from '@/components/live/audio-effect-picker';
 import { ProductDrawer } from '@/components/live/product-drawer';
+import { GiftGoalBar } from '@/components/live/gift-goal-bar';
 import { AudioEffectPipeline } from '@/lib/audio/audio-effects';
 import { scanBarcodeFromVideo } from '@/lib/product-scanner/barcode-scanner';
 import { lookupBarcode } from '@/lib/product-scanner/product-lookup';
@@ -66,6 +67,10 @@ export default function StudioView() {
   const [roomMode, setRoomMode] = useState(false);
   const [selectedBgId, setSelectedBgId] = useState('modern_studio');
   const [roomPanelOpen, setRoomPanelOpen] = useState(false);
+  // Gift goal (optional) — label + coin target set before going live.
+  const [giftGoalLabel, setGiftGoalLabel] = useState('');
+  const [giftGoalTargetInput, setGiftGoalTargetInput] = useState('');
+  const giftGoalTarget = parseInt(giftGoalTargetInput, 10) || 0;
   // Single VB processor, piped onto the preview camera track by the Room Mode
   // toggle effect. That same track is what gets published, so this one
   // processor composites the background for both preview and broadcast.
@@ -398,6 +403,8 @@ export default function StudioView() {
         status: 'live',
         agoraChannel: '',
         roomMode,
+        giftGoalLabel: giftGoalTarget > 0 && giftGoalLabel.trim() ? giftGoalLabel.trim() : null,
+        giftGoalTarget,
         startedAt: serverTimestamp(),
       });
       await updateDoc(doc(db, 'streams', docRef.id), { agoraChannel: docRef.id, id: docRef.id });
@@ -561,6 +568,11 @@ export default function StudioView() {
                   <SignalBadge quality={uplinkQuality} />
                 </div>
               )}
+              {isLive && stream && (
+                <div className="absolute top-16 left-4">
+                  <GiftGoalBar stream={stream} />
+                </div>
+              )}
               <ScanButton scanning={scanning} continuous={continuousScan} onScan={() => handleScan(false)} onToggleContinuous={() => setContinuousScan(c => !c)} />
               <ProductDrawer products={detectedProducts} featuredAd={featuredAd} onClose={dismissProducts} onAffiliateClick={() => setSessionAffiliateClicks(c => c + 1)} />
           </div>
@@ -578,6 +590,24 @@ export default function StudioView() {
                   placeholder="What are you streaming today?"
                   className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-[#FF7043] transition"
                 />
+              </div>
+              <div>
+                <label className="text-sm text-white/50 mb-1 block">Gift Goal <span className="text-white/30">(optional)</span></label>
+                <div className="flex gap-2">
+                  <input
+                    value={giftGoalLabel}
+                    onChange={(e) => setGiftGoalLabel(e.target.value)}
+                    placeholder="e.g. New mic"
+                    className="flex-[3] min-w-0 bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-[#FF7043] transition"
+                  />
+                  <input
+                    value={giftGoalTargetInput}
+                    onChange={(e) => setGiftGoalTargetInput(e.target.value.replace(/[^0-9]/g, ''))}
+                    inputMode="numeric"
+                    placeholder="🪙 target"
+                    className="flex-[2] min-w-0 bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-[#FF7043] transition"
+                  />
+                </div>
               </div>
               <div>
                 <label className="text-sm text-white/50 mb-2 block">Category</label>

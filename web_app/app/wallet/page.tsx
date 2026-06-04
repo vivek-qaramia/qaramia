@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useAuthStore } from '@/store/auth-store';
 import { useWallet, useCreatorBalance } from '@/hooks/use-wallet';
 import { CoinPackPicker } from '@/components/wallet/coin-pack-picker';
+import { CreatorPayouts } from '@/components/wallet/creator-payouts';
+import { creatorUsdRatePerDiamond } from '@/lib/types';
 
 // useSearchParams forces this subtree to render client-side, so it must sit
 // inside a Suspense boundary or the static prerender of /wallet bails out
@@ -75,10 +77,12 @@ function WalletContent() {
             <span className="text-3xl font-bold text-white">{balance.diamonds.toLocaleString()}</span>
           </div>
           <p className="text-xs text-white/40 mt-2">
-            Lifetime earned: {balance.lifetimeDiamonds.toLocaleString()} · ≈ ${(balance.diamonds * 0.01).toFixed(2)} cashout value
+            Lifetime earned: {balance.lifetimeDiamonds.toLocaleString()} · ≈ ${(balance.diamonds * creatorUsdRatePerDiamond(balance.lifetimeDiamonds)).toFixed(2)} cashout value
           </p>
         </div>
       </div>
+
+      <CreatorPayouts uid={user.uid} />
 
       <div className="bg-zinc-900 border border-white/10 rounded-xl p-5">
         <CoinPackPicker />

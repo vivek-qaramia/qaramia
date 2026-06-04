@@ -32,6 +32,9 @@ export interface LiveStream {
   status: 'live' | 'ended' | 'scheduled';
   agoraChannel: string;
   roomMode?: boolean;
+  // Gift goal — host-set coin target; progress = totalGifts / giftGoalTarget.
+  giftGoalLabel?: string;
+  giftGoalTarget?: number;
   startedAt: Date;
   endedAt?: Date;
   featuredProducts?: ProductInfo[];
@@ -156,6 +159,21 @@ export interface CreatorBalance {
   updatedAt?: Date;
 }
 
+/// Tiered creator share — diamond→USD rate by lifetime volume. Must match
+/// creatorTier() in functions/src/connect.js (server is authoritative; these
+/// are for display). Rising .010 / Partner .012 / Elite .014.
+export function creatorTierName(lifetimeDiamonds: number): string {
+  if (lifetimeDiamonds >= 1_000_000) return 'Elite';
+  if (lifetimeDiamonds >= 100_000) return 'Partner';
+  return 'Rising';
+}
+
+export function creatorUsdRatePerDiamond(lifetimeDiamonds: number): number {
+  if (lifetimeDiamonds >= 1_000_000) return 0.014;
+  if (lifetimeDiamonds >= 100_000) return 0.012;
+  return 0.010;
+}
+
 export interface CoinPack {
   id: string;
   label: string;
@@ -173,6 +191,67 @@ export const COIN_PACKS: CoinPack[] = [
   { id: 'power',   label: 'Power',   priceUsd: 24.99, coins:  2500, bonusCoins:  800, target: 'Heavy spender' },
   { id: 'whale',   label: 'Whale',   priceUsd: 99.99, coins: 10000, bonusCoins: 4000, target: 'Top supporter' },
 ];
+
+// ── Sponsored gifts ──────────────────────────────────────────────────────────
+// Mirrors flutter_app/lib/models/sponsorship.dart. A brand pays (per-send,
+// monthly retainer, or a viewer discount) to have a gift surfaced with brand
+// styling, optionally gated to specific streamers / detected products.
+export type SponsorshipPricingModel = 'premium' | 'free' | 'discounted';
+export type SponsorshipStatus = 'active' | 'paused' | 'ended';
+
+export interface Sponsorship {
+  id: string;
+  brandId: string;
+  brandName: string;
+  brandLogoUrl?: string;
+  giftTypeId: string;
+  pricingModel: SponsorshipPricingModel;
+  perSendRateUsd?: number;
+  monthlyRetainerUsd?: number;
+  /** Fraction off the coin price for viewers (0–1), `discounted` model only. */
+  viewerDiscount?: number;
+  creatorPayoutUsd?: number;
+  /** Restrict to these streamer UIDs; empty = platform-wide. */
+  allowedStreamerUids: string[];
+  /** Only show when the stream's detected products match these. */
+  gateOnKeywords: string[];
+  gateOnCategories: string[];
+  status: SponsorshipStatus;
+  totalSendCount: number;
+  totalBrandSpendUsd: number;
+  startsAt: Date;
+  endsAt?: Date;
+  createdAt: Date;
+}
+
+/** Whether a sponsorship currently applies to a stream + its visible products. */
+export function sponsorshipApplies(
+  s: Sponsorship,
+  opts: { streamerUid: string; keywords?: string[]; categories?: string[] },
+): boolean {
+  if (s.status !== 'active') return false;
+  if (s.allowedStreamerUids.length > 0 && !s.allowedStreamerUids.includes(opts.streamerUid)) {
+    return false;
+  }
+  const keywords = opts.keywords ?? [];
+  const categories = opts.categories ?? [];
+  if (s.gateOnKeywords.length > 0 && !s.gateOnKeywords.some((k) => keywords.includes(k))) {
+    return false;
+  }
+  if (s.gateOnCategories.length > 0 && !s.gateOnCategories.some((c) => categories.includes(c))) {
+    return false;
+  }
+  return true;
+}
+
+/** What the viewer pays in coins, applying any discount (free → 0). */
+export function viewerCoinCost(s: Sponsorship, standardCoinCost: number): number {
+  if (s.pricingModel === 'free') return 0;
+  if (s.pricingModel === 'discounted' && s.viewerDiscount != null) {
+    return Math.round(standardCoinCost * (1 - s.viewerDiscount));
+  }
+  return standardCoinCost;
+}
 
 export interface GiftSendEvent {
   id: string;
