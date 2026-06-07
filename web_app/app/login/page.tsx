@@ -51,7 +51,9 @@ export default function LoginPage() {
         <div className="text-center mb-8 flex flex-col items-center">
           <svg viewBox="0 0 320 320" width="80" height="80" aria-hidden="true">
             <defs>
-              <linearGradient id="login-ring" x1="15%" y1="0%" x2="85%" y2="100%">
+              {/* userSpaceOnUse so the gradient paints on the vertical stem
+                  (zero-width object bounding box otherwise renders nothing). */}
+              <linearGradient id="login-ring" gradientUnits="userSpaceOnUse" x1="124" y1="72" x2="124" y2="248">
                 <stop offset="0%"   stopColor="#FFD166"/>
                 <stop offset="45%"  stopColor="#FF8A5C"/>
                 <stop offset="100%" stopColor="#E94560"/>
@@ -66,17 +68,17 @@ export default function LoginPage() {
               </radialGradient>
             </defs>
             <circle cx="160" cy="160" r="155" fill="url(#login-halo)"/>
-            <circle cx="160" cy="160" r="98" fill="none" stroke="url(#login-ring)" strokeWidth="26" strokeLinecap="round"/>
-            <line x1="218" y1="218" x2="252" y2="252" stroke="url(#login-ring)" strokeWidth="26" strokeLinecap="round"/>
-            <path d="M 187 119 A 58 58 0 1 0 187 201" fill="none" stroke="url(#login-c)" strokeWidth="26" strokeLinecap="round"/>
+            {/* peekuu "P" — rose bowl first, warm stem on top (clean junction) */}
+            <path d="M 124 72 A 58 58 0 0 1 124 188" fill="none" stroke="url(#login-c)" strokeWidth="30" strokeLinecap="round"/>
+            <line x1="124" y1="72" x2="124" y2="248" stroke="url(#login-ring)" strokeWidth="30" strokeLinecap="round"/>
           </svg>
           <h1
             className="text-5xl font-semibold italic tracking-tight bg-gradient-to-r from-[#FF8A5C] to-[#E94560] bg-clip-text text-transparent mt-2"
             style={{ fontFamily: "var(--font-playfair), Georgia, serif" }}
           >
-            qara-mia!
+            peekuu
           </h1>
-          <p className="text-white/50 mt-2 text-sm tracking-[0.3em] uppercase">My beloved</p>
+          <p className="text-white/50 mt-2 text-sm tracking-[0.3em] uppercase">Live Streaming &amp; Commerce</p>
         </div>
 
         <div className="bg-zinc-900 rounded-2xl p-8 border border-zinc-700">

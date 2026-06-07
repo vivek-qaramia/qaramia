@@ -36,10 +36,10 @@ class LogoMark extends StatelessWidget {
   }
 }
 
-/// The full Qaramia lockup — mark on the left, italic wordmark on the right.
+/// The full peekuu lockup — mark on the left, italic wordmark on the right.
 ///
 /// Use this in app bars, login hero, etc. Renders an inline italic Playfair
-/// Display "qara-mia!" with a coral-to-love gradient.
+/// Display "peekuu" with a coral-to-love gradient.
 class LogoLockup extends StatelessWidget {
   final double markSize;
   final double wordmarkSize;
@@ -64,7 +64,7 @@ class LogoLockup extends StatelessWidget {
           blendMode: BlendMode.srcIn,
           shaderCallback: (rect) => QBrand.wordmarkGradient.createShader(rect),
           child: Text(
-            'qara-mia!',
+            'peekuu',
             style: QBrand.wordmark(fontSize: wordmarkSize),
           ),
         ),

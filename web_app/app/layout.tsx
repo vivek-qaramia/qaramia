@@ -14,7 +14,7 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "Qaramia — Live commerce, beloved",
+  title: "peekuu — Live Streaming & Commerce",
   description: "Live streaming where every product mentioned — seen or heard — is a purchase opportunity",
 };
 

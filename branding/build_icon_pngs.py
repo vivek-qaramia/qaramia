@@ -1,11 +1,11 @@
-"""Generate Qaramia icon + splash PNGs at 1024x1024.
+"""Generate peekuu icon + splash PNGs at 1024x1024.
 
-Draws the Q-with-C mark directly with Pillow's ImageDraw — no Cairo / SVG
-rasteriser required. Mirrors the geometry in branding/qaramia-mark.svg:
-  * Q outer ring  — circle, radius 308 of 1024, stroke 80, gradient gold→peach→love
-  * Q tail        — diagonal slash crossing the lower-right of the ring
-  * C inner arc   — 270° arc opening right, radius 180, stroke 80, rose→crimson
-  * Halo          — soft radial bleed of the peach behind the mark (icon only)
+Draws the "P" mark directly with Pillow's ImageDraw — no Cairo / SVG
+rasteriser required. Mirrors the geometry in branding/qaramia-mark.svg
+(320 viewBox scaled ×3.2 → 1024):
+  * P stem  — vertical rounded stroke, gold→coral→love
+  * P bowl  — right semicircle off the top of the stem, rose→crimson
+  * Halo    — soft radial bleed of the peach behind the mark (icon only)
 
 Two outputs:
   - qaramia-icon-1024.png   — icon-ready, dark wine background
@@ -63,6 +63,26 @@ def stroke_circle_with_gradient(img: Image.Image, cx, cy, r, stroke,
         )
 
 
+def _cap(img: Image.Image, x, y, stroke, color):
+    """Round line cap — a filled circle of the stroke's diameter."""
+    r = stroke // 2
+    ImageDraw.Draw(img).ellipse((x - r, y - r, x + r, y + r), fill=color + (255,))
+
+
+def stroke_vline_with_gradient(img: Image.Image, x, y0, y1, stroke, colors3):
+    """Vertical stroke with a 3-stop gradient (top→bottom) and round caps."""
+    draw = ImageDraw.Draw(img)
+    steps = max(1, int(abs(y1 - y0)))
+    for i in range(steps):
+        t = i / steps
+        col = gradient_color_3stop(colors3[0], colors3[1], colors3[2], t)
+        yy0 = y0 + (y1 - y0) * (i / steps)
+        yy1 = y0 + (y1 - y0) * ((i + 1) / steps) + 0.8  # overlap = no seams
+        draw.line([(x, yy0), (x, yy1)], fill=col + (255,), width=stroke)
+    _cap(img, x, y0, stroke, colors3[0])
+    _cap(img, x, y1, stroke, colors3[2])
+
+
 def stroke_line_with_gradient(img: Image.Image, p0, p1, stroke, colors3):
     draw = ImageDraw.Draw(img)
     steps = 64
@@ -104,31 +124,29 @@ def build_icon(out_path, with_background=True, with_halo=True):
         halo = make_halo(SIZE, CENTER, 200, CORAL, alpha_peak=130)
         img.alpha_composite(halo)
 
-    # Q outer ring
-    q_radius = 308
-    q_stroke = 80
-    stroke_circle_with_gradient(img, CENTER, CENTER, q_radius, q_stroke,
-                                [GOLD, CORAL, LOVE])
+    # Geometry mirrors branding/qaramia-mark.svg (320 viewBox) scaled ×3.2.
+    s = SIZE / 320
+    stroke = int(30 * s)  # 96 — matches the SVG's 30px stroke
 
-    # Q tail — short diagonal slash crossing the lower-right of the ring
-    stroke_line_with_gradient(img,
-        (CENTER + 218, CENTER + 218),
-        (CENTER + 326, CENTER + 326),
-        q_stroke, [GOLD, CORAL, LOVE])
-
-    # C inner arc — open on the right (90° gap)
-    # SVG was: M 187 119 A 58 58 0 1 0 187 201 — a 270° arc on a circle
-    # centered at (146, 160) with radius 58 (in viewbox 320). Scale × 3.2 → 1024.
-    # Centre (146 * 3.2, 160 * 3.2) = (467, 512). Radius 58 * 3.2 = 186.
-    c_cx = int(146 * (SIZE / 320))
-    c_cy = int(160 * (SIZE / 320))
-    c_r = int(58 * (SIZE / 320))
-    c_stroke = 80
-    # PIL arcs sweep clockwise from 3-o'clock. A C opening to the right means
-    # the 90° gap spans 315° → 45° (through 0°). The 270° arc is start=45 → 315.
-    stroke_circle_with_gradient(img, c_cx, c_cy, c_r, c_stroke,
+    # P bowl FIRST — right semicircle off the top of the stem (rose → crimson).
+    # SVG: M 124 72 A 58 58 0 0 1 124 188 → centre (124,130), r 58.
+    # Both ends land on the stem line, so the stem (drawn next, on top) covers
+    # the junctions cleanly — no separate bowl end-caps needed.
+    bowl_cx = int(124 * s)
+    bowl_cy = int(130 * s)
+    bowl_r = int(58 * s)
+    # PIL arcs sweep clockwise from 3-o'clock; the right half is -90° (top)
+    # through 0° (east) to 90° (bottom).
+    stroke_circle_with_gradient(img, bowl_cx, bowl_cy, bowl_r, stroke,
                                 [ROSE, ROSE, DEEP],
-                                sweep_start_deg=45, sweep_end_deg=315)
+                                sweep_start_deg=-90, sweep_end_deg=90)
+
+    # P stem ON TOP — vertical rounded stroke (gold → coral → love, top→bottom)
+    stem_x = int(124 * s)
+    stem_y0 = int(72 * s)
+    stem_y1 = int(248 * s)
+    stroke_vline_with_gradient(img, stem_x, stem_y0, stem_y1, stroke,
+                               [GOLD, CORAL, LOVE])
 
     img.save(out_path, 'PNG', optimize=True)
     print(f'  wrote {out_path} ({SIZE}x{SIZE})')

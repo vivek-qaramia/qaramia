@@ -26,7 +26,7 @@ class QaramiaApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp(
-      title: 'Qaramia',
+      title: 'peekuu',
       debugShowCheckedModeBanner: false,
       theme: QBrand.themeData(),
       home: const AuthGate(),

@@ -182,7 +182,7 @@ function CreateAdForm({ onDone }: { onDone: () => void }) {
 function downloadIO() {
   const today = new Date().toISOString().slice(0, 10);
   const lines = [
-    'QARAMIA PLATFORM — INSERTION ORDER',
+    'PEEKUU PLATFORM — INSERTION ORDER',
     '====================================',
     '',
     `Date: ${today}`,
@@ -209,18 +209,18 @@ function downloadIO() {
     '',
     'TERMS',
     '-----',
-    '1. Advertiser grants Qaramia a non-exclusive licence to display the ad creative.',
+    '1. Advertiser grants peekuu a non-exclusive licence to display the ad creative.',
     '2. Campaigns may be paused at any time via the self-serve console.',
-    '3. Qaramia may reject creatives that violate platform policies.',
+    '3. peekuu may reject creatives that violate platform policies.',
     '4. Cancellation: either party may cancel with 5 business days written notice.',
     '5. Billing: invoiced monthly NET 30 from end of billing period.',
-    '6. Impressions counted per Qaramia spec: drawer open ≥ 1 s, one per session per ad.',
+    '6. Impressions counted per peekuu spec: drawer open ≥ 1 s, one per session per ad.',
     '',
     'SIGNATURES',
     '----------',
     'Advertiser: _________________________  Date: __________',
     '',
-    'Qaramia:    _________________________  Date: __________',
+    'peekuu:     _________________________  Date: __________',
   ];
   const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
   const url = URL.createObjectURL(blob);

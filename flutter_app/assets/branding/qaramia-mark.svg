@@ -1,14 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" role="img" aria-label="Qaramia mark — Q enclosing a C">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" role="img" aria-label="peekuu mark — P">
   <defs>
-    <!-- Outer Q ring: sunrise gradient (gold → peach → rose) — radiance -->
-    <linearGradient id="ring" x1="15%" y1="0%" x2="85%" y2="100%">
+    <!-- Stem: sunrise gradient (gold → peach → rose) — radiance.
+         userSpaceOnUse so it paints on the vertical stem, whose object
+         bounding box has zero width. -->
+    <linearGradient id="ring" gradientUnits="userSpaceOnUse" x1="124" y1="72" x2="124" y2="248">
       <stop offset="0%"   stop-color="#FFD166"/>
       <stop offset="45%"  stop-color="#FF8A5C"/>
       <stop offset="100%" stop-color="#E94560"/>
     </linearGradient>
 
-    <!-- Inner C: rose-to-crimson — love -->
+    <!-- Bowl: rose-to-crimson — love -->
     <linearGradient id="cgrad" x1="25%" y1="10%" x2="75%" y2="90%">
       <stop offset="0%"   stop-color="#FF6B81"/>
       <stop offset="100%" stop-color="#C9184A"/>
@@ -21,7 +23,7 @@
       <stop offset="100%" stop-color="#FF7043" stop-opacity="0"/>
     </radialGradient>
 
-    <!-- Inner glow for the C, suggesting a heart's warmth -->
+    <!-- Inner glow behind the bowl's warmth -->
     <radialGradient id="cglow" cx="50%" cy="50%" r="50%">
       <stop offset="0%"   stop-color="#FFB3C1" stop-opacity="0.5"/>
       <stop offset="100%" stop-color="#C9184A" stop-opacity="0"/>
@@ -31,21 +33,17 @@
   <!-- Radiant halo -->
   <circle cx="160" cy="160" r="155" fill="url(#halo)"/>
 
-  <!-- Q outer ring -->
-  <circle cx="160" cy="160" r="98" fill="none" stroke="url(#ring)" stroke-width="26" stroke-linecap="round"/>
+  <!-- Soft glow behind the bowl -->
+  <circle cx="150" cy="130" r="48" fill="url(#cglow)"/>
 
-  <!-- Q tail — short diagonal slash crossing the lower-right of the ring -->
-  <line x1="218" y1="218" x2="252" y2="252" stroke="url(#ring)" stroke-width="26" stroke-linecap="round"/>
-
-  <!-- Inner glow behind the C -->
-  <circle cx="146" cy="160" r="50" fill="url(#cglow)"/>
-
-  <!-- The C: an arc on a smaller circle centered slightly left so it sits inside the Q.
-       Centered at (146,160), radius 58. Opening on the right (90° gap).
-       Start at angle -45° → end at +45°, large-arc=1, sweep=0 (counter-clockwise). -->
-  <path d="M 187 119 A 58 58 0 1 0 187 201"
+  <!-- P bowl FIRST — semicircle off the top of the stem, bulging right.
+       The stem (drawn next) sits on top so the junction stays clean. -->
+  <path d="M 124 72 A 58 58 0 0 1 124 188"
         fill="none"
         stroke="url(#cgrad)"
-        stroke-width="26"
+        stroke-width="30"
         stroke-linecap="round"/>
+
+  <!-- P stem ON TOP — vertical rounded stroke -->
+  <line x1="124" y1="72" x2="124" y2="248" stroke="url(#ring)" stroke-width="30" stroke-linecap="round"/>
 </svg>
