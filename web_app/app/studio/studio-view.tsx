@@ -14,6 +14,7 @@ import { FilterPicker } from '@/components/live/filter-picker';
 import { AudioEffectPicker } from '@/components/live/audio-effect-picker';
 import { ProductDrawer } from '@/components/live/product-drawer';
 import { GiftGoalBar } from '@/components/live/gift-goal-bar';
+import { PostStreamEditor } from '@/components/studio/post-stream-editor';
 import { AudioEffectPipeline } from '@/lib/audio/audio-effects';
 import { scanBarcodeFromVideo } from '@/lib/product-scanner/barcode-scanner';
 import { lookupBarcode } from '@/lib/product-scanner/product-lookup';
@@ -123,6 +124,14 @@ export default function StudioView() {
 
   const clientRef = useRef<ReturnType<typeof AgoraRTC.createClient> | null>(null);
   const audioTrackRef = useRef<ILocalAudioTrack | null>(null);
+
+  // Clip recording — capture the broadcast via MediaRecorder, then hand the
+  // blob to the post-stream editor before publishing to the feed.
+  const [recording, setRecording] = useState(false);
+  const [clipMsg, setClipMsg] = useState<string | null>(null);
+  const [editorBlob, setEditorBlob] = useState<Blob | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
 
   const stream = useSingleStream(streamId);
   const messages = useDanmaku(streamId ?? '');
@@ -499,8 +508,57 @@ export default function StudioView() {
     }
   };
 
+  // ── Clip recording ──────────────────────────────────────────────────────
+  // Capture the broadcast (the preview <video>, which shows the published
+  // frame incl. Room Mode/filters, + the mic) via MediaRecorder.
+  const startClipRecording = () => {
+    const videoEl = localVideoElRef.current as
+      (HTMLVideoElement & { captureStream?: () => MediaStream }) | null;
+    if (!videoEl || !videoEl.captureStream) {
+      setClipMsg('Recording is not supported in this browser.');
+      return;
+    }
+    try {
+      const captured = videoEl.captureStream();
+      const micTrack = audioTrackRef.current?.getMediaStreamTrack();
+      const stream = new MediaStream([
+        ...captured.getVideoTracks(),
+        ...(micTrack ? [micTrack] : []),
+      ]);
+      const mime = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
+        .find((m) => MediaRecorder.isTypeSupported(m)) ?? 'video/webm';
+      const rec = new MediaRecorder(stream, { mimeType: mime });
+      recordedChunksRef.current = [];
+      rec.ondataavailable = (e) => { if (e.data.size > 0) recordedChunksRef.current.push(e.data); };
+      rec.onstop = () => { void finalizeClip(); };
+      rec.start(1000);
+      mediaRecorderRef.current = rec;
+      setRecording(true);
+      setClipMsg(null);
+    } catch (e) {
+      console.error('startClipRecording failed', e);
+      setClipMsg('Could not start recording.');
+    }
+  };
+
+  const stopClipRecording = () => {
+    try { mediaRecorderRef.current?.stop(); } catch { /* already stopped */ }
+    setRecording(false);
+  };
+
+  // On stop, assemble the blob and open the post-stream editor (which handles
+  // effects, thumbnail, and publishing).
+  const finalizeClip = () => {
+    const chunks = recordedChunksRef.current;
+    recordedChunksRef.current = [];
+    if (chunks.length === 0) return;
+    const videoBlob = new Blob(chunks, { type: mediaRecorderRef.current?.mimeType || 'video/webm' });
+    setEditorBlob(videoBlob);
+  };
+
   const endStream = async () => {
     if (!streamId || !user) return;
+    if (recording) stopClipRecording();
     audioTrackRef.current?.stop(); audioTrackRef.current?.close();
     filterCanvasRef.current?.stop(); filterCanvasRef.current = null;
     audioEffectRef.current?.close(); audioEffectRef.current = null;
@@ -652,9 +710,23 @@ export default function StudioView() {
               </button>
             </div>
           ) : (
-            <button onClick={endStream} className="w-full py-4 bg-red-600 hover:bg-red-700 rounded-xl font-bold text-lg transition">
-              End Stream
-            </button>
+            <div className="space-y-3">
+              {/* Record → edit → publish a clip of the broadcast to the feed */}
+              <button
+                onClick={recording ? stopClipRecording : startClipRecording}
+                className="w-full py-3 rounded-xl font-bold transition flex items-center justify-center gap-2 bg-white/10 text-white hover:bg-white/20"
+              >
+                {recording ? (
+                  <><span className="w-3 h-3 rounded-sm bg-red-500" /> Stop &amp; edit clip</>
+                ) : (
+                  <><span className="w-3 h-3 rounded-full bg-red-500 animate-pulse" /> Record clip</>
+                )}
+              </button>
+              {clipMsg && <p className="text-xs text-center text-white/60">{clipMsg}</p>}
+              <button onClick={endStream} className="w-full py-4 bg-red-600 hover:bg-red-700 rounded-xl font-bold text-lg transition">
+                End Stream
+              </button>
+            </div>
           )}
 
           {/* Room Mode — virtual background. Mirrors Flutter's _roomMode UI:
@@ -800,6 +872,18 @@ export default function StudioView() {
           )}
         </div>
       </div>
+
+      {editorBlob && user && (
+        <PostStreamEditor
+          blob={editorBlob}
+          author={{ uid: user.uid, username: user.username, avatarUrl: user.avatarUrl }}
+          defaultCaption={title.trim() || 'Live clip'}
+          onClose={(published) => {
+            setEditorBlob(null);
+            setClipMsg(published ? 'Clip published to your feed 🎉' : null);
+          }}
+        />
+      )}
     </div>
   );
 }

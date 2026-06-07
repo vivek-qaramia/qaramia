@@ -20,6 +20,10 @@ exports.requestDiamondPayout        = connect.requestDiamondPayout;
 const giftCatalog = require('./giftCatalog');
 exports.seedGiftCatalog = giftCatalog.seedGiftCatalog;
 
+// Transcode web-recorded .webm clips to .mp4 so they play on iOS.
+const transcode = require('./transcode');
+exports.transcodeClipToMp4 = transcode.transcodeClipToMp4;
+
 // Generate a short-lived Agora RTC token for a channel.
 // Called by both Flutter and Next.js clients before joining a stream.
 exports.getAgoraToken = functions.https.onCall(async (data, context) => {

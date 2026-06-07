@@ -103,6 +103,11 @@ export interface Video {
   vignetteIntensity?: number;
   textOverlays?: TextOverlay[];
   stickers?: StickerOverlay[];
+  // Non-destructive trim window (web). Playback loops within [trimStartMs,
+  // trimEndMs]; absent/0 means play the whole clip. (Flutter trims the file
+  // itself via FFmpeg, so its published clips don't carry these.)
+  trimStartMs?: number;
+  trimEndMs?: number;
   createdAt: Date;
 }
 

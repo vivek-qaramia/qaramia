@@ -115,22 +115,29 @@ class _VideoCardState extends ConsumerState<VideoCard> {
         if (_initialized)
           GestureDetector(
             onTap: () => _ctrl.value.isPlaying ? _ctrl.pause() : _ctrl.play(),
-            child: AspectRatio(
-              aspectRatio: _ctrl.value.aspectRatio,
-              child: ValueListenableBuilder<VideoPlayerValue>(
-                valueListenable: _ctrl,
-                builder: (_, value, _) {
-                  return composeVideo(
-                    player: VideoPlayer(_ctrl),
-                    filterId: widget.video.filterId,
-                    zooms: widget.video.zooms,
-                    blurAmount: widget.video.blurAmount,
-                    vignetteIntensity: widget.video.vignetteIntensity,
-                    textOverlays: widget.video.textOverlays,
-                    stickers: widget.video.stickers,
-                    positionMs: value.position.inMilliseconds.toDouble(),
-                  );
-                },
+            // Center gives AspectRatio loose constraints so it sizes by the
+            // video's real aspect ratio. Without it, the enclosing
+            // Stack(fit: StackFit.expand) forces tight full-screen constraints
+            // and non-vertical clips (e.g. web's landscape recordings) get
+            // stretched to fill instead of letterboxed.
+            child: Center(
+              child: AspectRatio(
+                aspectRatio: _ctrl.value.aspectRatio,
+                child: ValueListenableBuilder<VideoPlayerValue>(
+                  valueListenable: _ctrl,
+                  builder: (_, value, _) {
+                    return composeVideo(
+                      player: VideoPlayer(_ctrl),
+                      filterId: widget.video.filterId,
+                      zooms: widget.video.zooms,
+                      blurAmount: widget.video.blurAmount,
+                      vignetteIntensity: widget.video.vignetteIntensity,
+                      textOverlays: widget.video.textOverlays,
+                      stickers: widget.video.stickers,
+                      positionMs: value.position.inMilliseconds.toDouble(),
+                    );
+                  },
+                ),
               ),
             ),
           )

@@ -19,16 +19,31 @@ export function ComposedVideo({ video, className = '' }: { video: Video; classNa
   const videoRef = useRef<HTMLVideoElement>(null);
   const [positionMs, setPositionMs] = useState(0);
 
+  const trimStart = video.trimStartMs ?? 0;
+  const trimEnd = video.trimEndMs ?? 0;
+
   // Listen to the video element's timeupdate so position-dependent effects
   // (zoom-at-point, text/sticker visibility) re-render as playback advances.
   // timeupdate fires roughly 4Hz which is plenty for these layered effects.
+  // Also enforce the non-destructive trim window: start at trimStart and loop
+  // back when reaching trimEnd (Flutter trims the file instead).
   useEffect(() => {
     const el = videoRef.current;
     if (!el) return;
-    const tick = () => setPositionMs(el.currentTime * 1000);
+    const seekToStart = () => { if (trimStart > 0) el.currentTime = trimStart / 1000; };
+    const tick = () => {
+      if (trimEnd > 0 && el.currentTime * 1000 >= trimEnd) {
+        el.currentTime = trimStart / 1000;
+      }
+      setPositionMs(el.currentTime * 1000);
+    };
+    el.addEventListener('loadedmetadata', seekToStart);
     el.addEventListener('timeupdate', tick);
-    return () => el.removeEventListener('timeupdate', tick);
-  }, []);
+    return () => {
+      el.removeEventListener('loadedmetadata', seekToStart);
+      el.removeEventListener('timeupdate', tick);
+    };
+  }, [trimStart, trimEnd]);
 
   const scale = scaleAtPosition(positionMs, video.zooms);
   const filterCss = filterCssFor(video.filterId);
