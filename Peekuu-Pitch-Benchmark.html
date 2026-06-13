@@ -1,0 +1,152 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>peekuu — Benchmark pitch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Playfair+Display:ital,wght@1,600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--peach:#FF7043;--gold:#FFD166;--love:#E94560;--wine:#1F0B14;--wine2:#14060C}
+html,body{height:100%}
+body{font-family:'Inter',system-ui,Segoe UI,Roboto,sans-serif;background:var(--wine2);color:#fff;overflow:hidden}
+.wordmark{font-family:'Playfair Display',Georgia,serif;font-style:italic;font-weight:600;
+  background:linear-gradient(135deg,#FF8A5C,#E94560);-webkit-background-clip:text;background-clip:text;color:transparent}
+#deck{position:relative;height:100vh;width:100vw}
+.slide{position:absolute;inset:0;display:none;flex-direction:column;justify-content:center;
+  padding:7vh 9vw;background:radial-gradient(120% 120% at 30% 10%,#2a0f1c 0%,var(--wine) 45%,var(--wine2) 100%)}
+.slide.active{display:flex;animation:fade .35s ease}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.kicker{font-size:13px;letter-spacing:3px;font-weight:800;color:#ffffff66;margin-bottom:18px}
+h1{font-size:min(6vw,52px);line-height:1.08;color:var(--peach);margin-bottom:26px;font-weight:800}
+ul{list-style:none;max-width:1000px}
+li{font-size:min(2.5vw,23px);line-height:1.5;color:#f2e9ec;margin:14px 0;padding-left:26px;position:relative}
+li::before{content:'';position:absolute;left:0;top:13px;width:9px;height:9px;border-radius:50%;
+  background:linear-gradient(135deg,var(--gold),var(--love))}
+.note{position:absolute;left:9vw;right:9vw;bottom:8vh;font-size:14px;color:var(--gold);font-style:italic;
+  border-left:3px solid var(--gold);padding-left:12px;display:none}
+body.notes .note{display:block}
+.brand{position:absolute;top:4vh;left:9vw;display:flex;align-items:center;gap:10px}
+.brand .wordmark{font-size:26px}
+.counter{position:absolute;bottom:4vh;right:5vw;font-size:13px;color:#ffffff55;font-weight:600}
+.bar{position:absolute;top:0;left:0;height:4px;background:linear-gradient(90deg,var(--gold),var(--peach),var(--love));transition:width .3s}
+.hint{position:absolute;bottom:4vh;left:5vw;font-size:12px;color:#ffffff33}
+/* cover */
+.cover{align-items:flex-start;justify-content:center}
+.cover .big{font-size:min(13vw,120px);line-height:1}
+.cover .tag{font-size:min(3vw,26px);color:#f2e9ec;margin-top:18px}
+.cover .fund{margin-top:40px;font-size:min(3vw,24px);font-weight:800;color:var(--gold)}
+.cover .lens{margin-top:8px;font-size:16px;color:#ffffff88;max-width:760px}
+.cover .fillnote{margin-top:30px;font-size:13px;color:#ffffff55;font-style:italic;max-width:760px}
+</style></head>
+<body>
+<div class="bar" id="bar"></div>
+<div id="deck">
+  <div class="brand"><svg viewBox="0 0 320 320" width="46" height="46" aria-hidden="true">
+  <defs>
+    <linearGradient id="stem" gradientUnits="userSpaceOnUse" x1="124" y1="72" x2="124" y2="248">
+      <stop offset="0%" stop-color="#FFD166"/><stop offset="45%" stop-color="#FF8A5C"/><stop offset="100%" stop-color="#E94560"/>
+    </linearGradient>
+    <linearGradient id="bowl" x1="25%" y1="10%" x2="75%" y2="90%">
+      <stop offset="0%" stop-color="#FF6B81"/><stop offset="100%" stop-color="#C9184A"/>
+    </linearGradient>
+  </defs>
+  <path d="M 124 72 A 58 58 0 0 1 124 188" fill="none" stroke="url(#bowl)" stroke-width="30" stroke-linecap="round"/>
+  <line x1="124" y1="72" x2="124" y2="248" stroke="url(#stem)" stroke-width="30" stroke-linecap="round"/>
+</svg><span class="wordmark">peekuu</span></div>
+  <section class="slide cover active">
+      <div class="big wordmark">peekuu</div>
+      <div class="tag">Live Streaming &amp; Commerce — the camera connected to the checkout</div>
+      <div class="fund">Pitch cut for: Benchmark</div>
+      <div class="lens">Engagement loop → cohort retention → network effects (Sarah Tavel). Metrics-led.</div>
+      <div class="fillnote">[brackets] = insert real figures before sending. Press <b>N</b> for coaching notes, <b>F</b> for fullscreen, arrows / click to navigate.</div>
+    </section>
+<section class="slide">
+      <div class="kicker">SLIDE 1 / 12</div>
+      <h1>The one-liner</h1>
+      <ul><li>peekuu is a live + short-video commerce network where watching turns into chatting, gifting, and buying.</li><li>Every product shown or spoken becomes shoppable in real time — the loop monetizes itself.</li></ul>
+      <div class="note"><b>What this slide must land:</b> A consumer network with an escalating loop — not a feature.</div>
+    </section>
+<section class="slide">
+      <div class="kicker">SLIDE 2 / 12</div>
+      <h1>The engagement loop</h1>
+      <ul><li>Watch → danmaku comment → send gift → tip earned coins → creator earns → creator streams more → richer feed.</li><li>Accruing benefits: coin balance, follow graph, creator earnings + audience.</li><li>Switching costs rise the more a user engages — on both sides.</li></ul>
+      <div class="note"><b>What this slide must land:</b> Escalating engagement + accruing benefits + rising switching costs.</div>
+    </section>
+<section class="slide">
+      <div class="kicker">SLIDE 3 / 12</div>
+      <h1>Retention is the thesis</h1>
+      <ul><li>[Insert D1 / D7 / D30 cohort retention curve — the flattening tail is the whole pitch.]</li><li>[Viewer retention AND creator retention, shown separately.]</li><li>If the curve is not flat yet, that is the #1 thing to prove before this meeting.</li></ul>
+      <div class="note"><b>What this slide must land:</b> A cohort retention curve that FLATTENS. The slide Benchmark buys on.</div>
+    </section>
+<section class="slide">
+      <div class="kicker">SLIDE 4 / 12</div>
+      <h1>The magic moment</h1>
+      <ul><li>Streamer says “I love this Stanley cup” → shoppable card + matched ad for every viewer in ~2s.</li><li>Viewer gifts → creator earns → appears on the live leaderboard / gift goal.</li><li>Engagement and monetization in one motion.</li></ul>
+      <div class="note"><b>What this slide must land:</b> Show the loop firing + the commerce hook landing in seconds.</div>
+    </section>
+<section class="slide">
+      <div class="kicker">SLIDE 5 / 12</div>
+      <h1>Why it is a network, not a feature</h1>
+      <ul><li>Two-sided: creators bring audiences; advertisers bring demand; product catalog + advertiser graph compound.</li><li>Multimodal detection improves with usage — a data network effect, not just UI.</li><li>A clone cannot replicate creator earnings history, audience, or the detection corpus.</li></ul>
+      <div class="note"><b>What this slide must land:</b> Defensibility vs. a giant bolting on a clone.</div>
+    </section>
+<section class="slide">
+      <div class="kicker">SLIDE 6 / 12</div>
+      <h1>The white space — 20x gap, no fused competitor</h1>
+      <ul><li>Asia ~$370B live commerce vs. US ~$17B — proven demand, not a hypothesis.</li><li>Feed-first beats store-first: Douyin 47% of China live-commerce GMV vs. marketplace-native Taobao trailing.</li><li>No Western app fuses feed + live + danmaku + auto-shopping + gifting — TikTok, Twitch, Whatnot, YouTube each own one fragment.</li><li>TikTok pays creators as little as ~40% on gifts vs. Twitch/YouTube ~70% — peekuu’s tiered split is a direct creator-acquisition wedge.</li></ul>
+      <div class="note"><b>What this slide must land:</b> The market is proven in Asia and structurally open in the West.</div>
+    </section>
+<section class="slide">
+      <div class="kicker">SLIDE 7 / 12</div>
+      <h1>Unit economics of one viewer action</h1>
+      <ul><li>Gifting: coins → diamonds → cash-out, platform take rate [insert %].</li><li>Ads ($25 CPM floor) + affiliate clicks; sponsored brand gifts.</li><li>[Insert ARPDAU / contribution margin per active stream.]</li></ul>
+      <div class="note"><b>What this slide must land:</b> Engagement converts to durable, expanding margin per user.</div>
+    </section>
+<section class="slide">
+      <div class="kicker">SLIDE 8 / 12</div>
+      <h1>The detection moat (brief)</h1>
+      <ul><li>Barcode + Claude Vision + speech detection turns content into ad inventory automatically.</li><li>Accuracy compounds with the catalog + transcript corpus → a widening data moat.</li></ul>
+      <div class="note"><b>What this slide must land:</b> The proprietary layer that makes the network compound.</div>
+    </section>
+<section class="slide">
+      <div class="kicker">SLIDE 9 / 12</div>
+      <h1>Market</h1>
+      <ul><li>Wedge: creator live commerce. [Insert TAM / SAM + source.]</li><li>Adjacent: short-video commerce + creator monetization + brand intelligence.</li></ul>
+      <div class="note"><b>What this slide must land:</b> Large enough for a venture-scale network outcome.</div>
+    </section>
+<section class="slide">
+      <div class="kicker">SLIDE 10 / 12</div>
+      <h1>Traction &amp; metrics</h1>
+      <ul><li>[Core funnel: DAU/WAU, sessions/day, stream length, gift conversion, GMV.]</li><li>[Creator metrics: active creators, repeat-stream rate, earnings.]</li><li>Shipped end-to-end on mobile + web (live, gifting, payouts, detection, editor).</li></ul>
+      <div class="note"><b>What this slide must land:</b> Early signal of product-market fit — proof, not promises.</div>
+    </section>
+<section class="slide">
+      <div class="kicker">SLIDE 11 / 12</div>
+      <h1>Team</h1>
+      <ul><li>[Founder background + why you understand this loop.]</li><li>[Shipping velocity as evidence — full stack live in weeks.]</li></ul>
+      <div class="note"><b>What this slide must land:</b> Why this team out-executes on a consumer network.</div>
+    </section>
+<section class="slide">
+      <div class="kicker">SLIDE 12 / 12</div>
+      <h1>The ask</h1>
+      <ul><li>[Raising $X to reach Y retained creators / cohort-retention target in N months.]</li><li>Use of funds: [creator growth, retention loops, detection accuracy].</li></ul>
+      <div class="note"><b>What this slide must land:</b> Specific raise tied to the retention/network milestone.</div>
+    </section>
+  <div class="counter" id="counter"></div>
+  <div class="hint">← → navigate · N notes · F fullscreen</div>
+</div>
+<script>
+const slides=[...document.querySelectorAll('.slide')];let i=0;
+const bar=document.getElementById('bar');
+function show(n){i=Math.max(0,Math.min(slides.length-1,n));
+  slides.forEach((s,k)=>s.classList.toggle('active',k===i));
+  bar.style.width=((i)/(slides.length-1)*100)+'%';}
+document.addEventListener('keydown',e=>{
+  if(['ArrowRight',' ','ArrowDown','PageDown'].includes(e.key)){show(i+1);e.preventDefault();}
+  else if(['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){show(i-1);e.preventDefault();}
+  else if(e.key==='n'||e.key==='N'){document.body.classList.toggle('notes');}
+  else if(e.key==='f'||e.key==='F'){if(!document.fullscreenElement)document.documentElement.requestFullscreen();else document.exitFullscreen();}
+});
+document.getElementById('deck').addEventListener('click',e=>{if(e.clientX<window.innerWidth*0.25)show(i-1);else show(i+1);});
+show(0);
+</script>
+</body></html>
