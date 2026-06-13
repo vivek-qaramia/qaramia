@@ -111,7 +111,11 @@ export default function LiveView({ streamId }: { streamId: string }) {
       slots.delete(remoteUser.uid);
     });
 
-    client.join(AGORA_APP_ID, agoraChannel, null, null)
+    // Keep the join promise so cleanup can wait for it. Leaving a client whose
+    // join is still in flight (StrictMode double-mount / Fast Refresh) orphans
+    // the websocket, and its reconnect logic then fires ERR_REJOIN_NOT_JOINED
+    // (2025). Awaiting join before leave avoids that.
+    const joinPromise = client.join(AGORA_APP_ID, agoraChannel, null, null)
       .catch((e: unknown) => {
         if ((e as { code?: string })?.code !== 'OPERATION_ABORTED') console.error(e);
       });
@@ -125,7 +129,7 @@ export default function LiveView({ streamId }: { streamId: string }) {
       try { localVideoTrackRef.current?.stop(); localVideoTrackRef.current?.close(); } catch { /* track may be unstarted — ignore */ }
       audioTrackRef.current = null;
       localVideoTrackRef.current = null;
-      client.leave().catch(() => {});
+      joinPromise.then(() => client.leave()).catch(() => {});
     };
   }, [agoraChannel, streamId]);
 
