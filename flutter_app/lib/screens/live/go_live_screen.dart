@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
-import 'package:flutter_screen_recording/flutter_screen_recording.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/live_stream.dart';
@@ -49,15 +48,18 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   RtcEngine? _engine;
   bool _isRecording = false;
   String? _recordingPath;
+  // Agora's on-device recorder. Records the clean published video+audio track
+  // (no UI overlay), unlike the old screen-capture approach which baked the
+  // control buttons into the clip.
+  MediaRecorder? _mediaRecorder;
   // The uid of the remote broadcaster (co-host) currently published to the
   // channel, or null when only the host is streaming. v1 supports a single
   // co-host so we don't need a list yet — the first remote-published event
   // wins and unpublish clears it.
   int? _remoteUid;
-  // When true, the broadcast is screen-recorded so the host can edit + publish
-  // a clip after End. Default ON, persisted to SharedPreferences. Toggling
-  // off skips _startRecording entirely so Android's MediaProjection consent
-  // dialog never appears.
+  // When true, the broadcast is recorded (Agora media recorder) so the host can
+  // edit + publish a clip after End. Default ON, persisted to SharedPreferences.
+  // Toggling off skips _startRecording entirely.
   static const _recordPrefKey = 'qaramia_record_stream_enabled';
   bool _recordEnabled = true;
   final _cohostService = CoHostService();
@@ -176,13 +178,14 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
 
       // Kick off local recording only after onJoinChannelSuccess — the channel
       // isn't truly joined when joinChannel's future resolves, and the
-      // recorder rejects with -4 (NOT_SUPPORTED) if started before then.
+      // recorder rejects with -4 (NOT_SUPPORTED) if started before then. We
+      // need the assigned localUid to record the local broadcaster's stream.
       _engine!.registerEventHandler(
         RtcEngineEventHandler(
           onJoinChannelSuccess: (RtcConnection conn, int elapsed) {
             debugPrint('[GoLive] onJoinChannelSuccess uid=${conn.localUid} elapsed=${elapsed}ms');
             if (mounted && _recordEnabled && !_isRecording) {
-              _startRecording(stream);
+              _startRecording(stream, conn.localUid ?? 0);
             }
           },
           // A second broadcaster (co-host who accepted an invite) joined
@@ -303,44 +306,71 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     return file.path;
   }
 
-  /// Records the live stream via Android MediaProjection (Plan B). Agora's
-  /// native MediaRecorder returns -4 NOT_SUPPORTED on this Samsung device
-  /// across SDK versions tested, so we fall back to screen capture even
-  /// though it triggers a per-session consent dialog the user has to
-  /// accept. The trade-off: recording works on every device, at the cost
-  /// of the OS-mandated prompt.
-  Future<void> _startRecording(LiveStream stream) async {
+  /// Records the local broadcaster's clean video+audio track to an mp4 via
+  /// Agora's on-device media recorder. Unlike screen capture, this records the
+  /// published frames only — no UI overlay (buttons, danmaku) is baked in.
+  /// Room Mode + beauty are engine-level effects so they carry into the file;
+  /// the colour-grade filter is re-applied at playback from `filterId`.
+  ///
+  /// Must run after onJoinChannelSuccess with the assigned [localUid] — the
+  /// recorder rejects with -4 (NOT_SUPPORTED) otherwise.
+  Future<void> _startRecording(LiveStream stream, int localUid) async {
     try {
-      final filename = 'qaramia_${stream.id}';
-      final started = await FlutterScreenRecording.startRecordScreenAndAudio(filename);
-      if (!started) {
-        debugPrint('[GoLive] startRecordScreen returned false (user denied?)');
+      final dir = await getTemporaryDirectory();
+      final outPath = '${dir.path}/qaramia_${stream.id}.mp4';
+
+      final recorder = await _engine!.createMediaRecorder(
+        RecorderStreamInfo(channelId: stream.agoraChannel, uid: localUid),
+      );
+      if (recorder == null) {
+        debugPrint('[GoLive] createMediaRecorder returned null');
         return;
       }
+      await recorder.setMediaRecorderObserver(
+        MediaRecorderObserver(
+          onRecorderStateChanged: (channelId, uid, state, reason) {
+            debugPrint('[GoLive] recorder state=$state reason=$reason');
+          },
+        ),
+      );
+      await recorder.startRecording(
+        MediaRecorderConfiguration(
+          storagePath: outPath,
+          containerFormat: MediaRecorderContainerFormat.formatMp4,
+          streamType: MediaRecorderStreamType.streamTypeBoth,
+        ),
+      );
+
+      _mediaRecorder = recorder;
       _isRecording = true;
-      // Path is only known at stop time on Android — keep filename as a
-      // placeholder so existing `_recordingPath != null` checks still work.
-      _recordingPath = filename;
-      debugPrint('[GoLive] screen recording started (filename=$filename)');
+      _recordingPath = outPath;
+      debugPrint('[GoLive] media recording started → $outPath');
     } catch (e) {
       debugPrint('[GoLive] startRecording failed: $e');
       _isRecording = false;
       _recordingPath = null;
+      _mediaRecorder = null;
     }
   }
 
-  /// Stops the active screen recorder. Safe to call when nothing is recording.
-  /// Updates `_recordingPath` to the final file location returned by the
-  /// plugin. Does NOT delete the file.
+  /// Stops + tears down the media recorder. Safe to call when not recording.
+  /// `_recordingPath` was set at start to the final file location. Does NOT
+  /// delete the file.
   Future<void> _stopRecording() async {
     if (!_isRecording) return;
     try {
-      final path = await FlutterScreenRecording.stopRecordScreen;
-      _recordingPath = path;
-      debugPrint('[GoLive] recording stopped, file at $path');
+      await _mediaRecorder?.stopRecording();
     } catch (e) {
       debugPrint('[GoLive] stopRecording failed: $e');
+    }
+    try {
+      if (_mediaRecorder != null) {
+        await _engine?.destroyMediaRecorder(_mediaRecorder!);
+      }
+    } catch (e) {
+      debugPrint('[GoLive] destroyMediaRecorder failed: $e');
     } finally {
+      _mediaRecorder = null;
       _isRecording = false;
     }
   }
