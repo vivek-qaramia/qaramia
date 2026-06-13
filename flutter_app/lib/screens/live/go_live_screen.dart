@@ -717,6 +717,10 @@ class _BroadcastViewState extends ConsumerState<_BroadcastView> {
   // surface unrendered.
   late final VideoViewController _videoController;
 
+  // Agora's capture starts on the front camera; switchCamera() toggles. Tracked
+  // only to flip the button label between Front/Rear.
+  bool _facingFront = true;
+
   @override
   void initState() {
     super.initState();
@@ -748,6 +752,15 @@ class _BroadcastViewState extends ConsumerState<_BroadcastView> {
   /// remote view passes the co-host's assigned uid. The filter only applies
   /// to the local view — the co-host's stream is shown unfiltered (their
   /// device decides its own grade).
+  Future<void> _switchCamera() async {
+    try {
+      await widget.engine.switchCamera();
+      if (mounted) setState(() => _facingFront = !_facingFront);
+    } catch (e) {
+      debugPrint('[GoLive] switchCamera failed: $e');
+    }
+  }
+
   Widget _videoFor({required bool local}) {
     final controller = local
         ? _videoController
@@ -919,6 +932,30 @@ class _BroadcastViewState extends ConsumerState<_BroadcastView> {
           Positioned(
             right: 16, top: 272,
             child: BroadcastScanButton(engine: engine, streamId: stream.id),
+          ),
+          // Front/rear camera switch.
+          Positioned(
+            right: 16, top: 348,
+            child: GestureDetector(
+              onTap: _switchCamera,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.45),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: Colors.white24),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.cameraswitch, color: Colors.white, size: 16),
+                    const SizedBox(width: 6),
+                    Text(_facingFront ? 'Front' : 'Rear',
+                        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                  ],
+                ),
+              ),
+            ),
           ),
           // Session earnings card (left side, above the chat overlay)
           Positioned(
