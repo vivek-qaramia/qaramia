@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/video.dart' show StickerOverlay, TextOverlay, ZoomMarker;
@@ -35,6 +36,12 @@ class VideoUploadService {
   }) async {
     final videoId = _uuid.v4();
     final ref = _storage.ref().child('videos/$videoId.mp4');
+
+    // Debug-only: log the compressed size we're about to upload so the shrink
+    // can be verified on real footage via `adb logcat | grep Upload`.
+    if (kDebugMode) {
+      debugPrint('[Upload] publishing ${await file.length()} bytes → videos/$videoId.mp4');
+    }
 
     final task = ref.putFile(file);
     if (onProgress != null) {

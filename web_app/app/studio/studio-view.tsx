@@ -527,7 +527,15 @@ export default function StudioView() {
       ]);
       const mime = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
         .find((m) => MediaRecorder.isTypeSupported(m)) ?? 'video/webm';
-      const rec = new MediaRecorder(stream, { mimeType: mime });
+      // Cap the recording bitrate so the .webm we upload stays small. Without a
+      // cap MediaRecorder picks a high default (often 5-8 Mbps), which makes the
+      // upload slow; ~2.5 Mbps video + 128 kbps audio is plenty for 1080p social
+      // clips. The server (transcodeClipToMp4) re-encodes to mp4 afterwards.
+      const rec = new MediaRecorder(stream, {
+        mimeType: mime,
+        videoBitsPerSecond: 2_500_000,
+        audioBitsPerSecond: 128_000,
+      });
       recordedChunksRef.current = [];
       rec.ondataavailable = (e) => { if (e.data.size > 0) recordedChunksRef.current.push(e.data); };
       rec.onstop = () => { void finalizeClip(); };

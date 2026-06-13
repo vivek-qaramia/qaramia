@@ -278,7 +278,7 @@ class _PostStreamEditorScreenState extends ConsumerState<PostStreamEditorScreen>
 
     setState(() {
       _processing = true;
-      _stage = 'Trimming…';
+      _stage = 'Processing…';
       _uploadProgress = 0;
     });
     // Pause playback so we're not contending with the upload for IO.
@@ -291,8 +291,9 @@ class _PostStreamEditorScreenState extends ConsumerState<PostStreamEditorScreen>
         throw Exception('Recording missing at ${widget.recordingPath}');
       }
 
-      // Trim only if the user actually narrowed the window — saves a slow
-      // re-encode pass when they're publishing the full clip.
+      // Re-encode before upload so we never send the large raw recording.
+      // When the user narrowed the window we trim (which also compresses);
+      // otherwise we compress the full clip. Either way the upload is smaller.
       final totalMs = _ctrl.value.duration.inMilliseconds;
       final isTrimmed = _startMs > 50 || _endMs < totalMs - 50;
       final fileToUpload = isTrimmed
@@ -301,7 +302,9 @@ class _PostStreamEditorScreenState extends ConsumerState<PostStreamEditorScreen>
               start: Duration(milliseconds: _startMs.toInt()),
               end: Duration(milliseconds: _endMs.toInt()),
             ))
-          : original;
+          : trimmedFile = File(await VideoTrimService().compress(
+              inputPath: widget.recordingPath,
+            ));
 
       if (mounted) setState(() => _stage = 'Uploading…');
 
@@ -367,10 +370,10 @@ class _PostStreamEditorScreenState extends ConsumerState<PostStreamEditorScreen>
         },
       );
 
+      // Both the trim and compress paths now write a separate temp file, so
+      // trimmedFile is always set here; clean up the raw recording and it.
       try { await original.delete(); } catch (_) {}
-      if (trimmedFile != null) {
-        try { await trimmedFile.delete(); } catch (_) {}
-      }
+      try { await trimmedFile.delete(); } catch (_) {}
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

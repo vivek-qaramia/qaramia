@@ -28,16 +28,47 @@ class VideoTrimService {
     // -y          overwrite output if it exists
     // -i input    source
     // -ss / -to   trim window
-    // -c:v libx264 -preset ultrafast   fast re-encode, frame-accurate
+    // -c:v libx264 -preset veryfast -crf 26   compress for fast upload. The old
+    //              -preset ultrafast had no quality target and produced files
+    //              ~2-4x larger; veryfast+crf 26 roughly halves the size at no
+    //              visible quality loss while staying fast enough on-device.
+    // -movflags +faststart   moves the moov atom to the front so playback can
+    //              start before the whole file finishes downloading.
     // -c:a aac    audio re-encode (mic recordings are usually AAC already
     //              but a copy can fail when the cut isn't at a keyframe)
     final cmd =
-        '-y -i "$inputPath" -ss $ss -to $to -c:v libx264 -preset ultrafast -c:a aac "$outPath"';
+        '-y -i "$inputPath" -ss $ss -to $to '
+        '-c:v libx264 -preset veryfast -crf 26 -movflags +faststart '
+        '-c:a aac -b:a 128k "$outPath"';
     final session = await FFmpegKit.execute(cmd);
     final code = await session.getReturnCode();
     if (!ReturnCode.isSuccess(code)) {
       final logs = await session.getAllLogsAsString();
       throw Exception('FFmpeg trim failed (code ${code?.getValue()}): $logs');
+    }
+    final out = File(outPath);
+    if (!await out.exists()) {
+      throw Exception('FFmpeg returned success but no output file at $outPath');
+    }
+    return outPath;
+  }
+
+  /// Re-encodes [inputPath] end-to-end with the same upload-friendly settings
+  /// as [trim] but without cutting. Used when the creator publishes the full
+  /// clip so the raw recording is shrunk before upload instead of sent as-is.
+  /// Returns the output path; caller deletes it after upload. Throws on failure.
+  Future<String> compress({required String inputPath}) async {
+    final tmp = await getTemporaryDirectory();
+    final outPath = '${tmp.path}/compress_${_uuid.v4()}.mp4';
+    final cmd =
+        '-y -i "$inputPath" '
+        '-c:v libx264 -preset veryfast -crf 26 -movflags +faststart '
+        '-c:a aac -b:a 128k "$outPath"';
+    final session = await FFmpegKit.execute(cmd);
+    final code = await session.getReturnCode();
+    if (!ReturnCode.isSuccess(code)) {
+      final logs = await session.getAllLogsAsString();
+      throw Exception('FFmpeg compress failed (code ${code?.getValue()}): $logs');
     }
     final out = File(outPath);
     if (!await out.exists()) {
