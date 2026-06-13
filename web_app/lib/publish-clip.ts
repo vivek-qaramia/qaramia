@@ -24,8 +24,9 @@ export interface ClipEffects {
 /**
  * Upload a recorded broadcast clip + thumbnail to Storage and create the
  * matching videos/{id} doc so it appears in the feed. Web equivalent of the
- * Flutter VideoUploadService.uploadAndPublish (minus the post-stream editor).
- * Returns the new video id.
+ * Flutter VideoUploadService.uploadAndPublish. The clip is already compressed
+ * to mp4 in the browser (see lib/video-transcode), so we upload it directly —
+ * no server transcode needed. Returns the new video id.
  */
 export async function publishClip(opts: {
   videoBlob: Blob;
@@ -37,8 +38,8 @@ export async function publishClip(opts: {
   const { videoBlob, thumbBlob, author, caption, effects = {} } = opts;
   const id = crypto.randomUUID();
 
-  const videoRef = ref(storage, `videos/${id}.webm`);
-  await uploadBytes(videoRef, videoBlob, { contentType: videoBlob.type || 'video/webm' });
+  const videoRef = ref(storage, `videos/${id}.mp4`);
+  await uploadBytes(videoRef, videoBlob, { contentType: videoBlob.type || 'video/mp4' });
   const videoUrl = await getDownloadURL(videoRef);
 
   // Thumbnail is best-effort — the feed/profile fall back to a placeholder.

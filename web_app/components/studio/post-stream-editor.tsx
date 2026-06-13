@@ -55,6 +55,7 @@ export function PostStreamEditor({
   const [trimStart, setTrimStart] = useState(0);
   const [trimEnd, setTrimEnd] = useState(0);
   const [publishing, setPublishing] = useState(false);
+  const [stage, setStage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => () => URL.revokeObjectURL(url), [url]);
@@ -131,38 +132,54 @@ export function PostStreamEditor({
     setPublishing(true);
     setError(null);
     try {
-      // Thumbnail is best-effort — never block publishing. toBlob throws a
-      // SecurityError if the canvas is "tainted" (the recorded frames can
-      // originate from a captureStream/WebGL source the browser flags as
-      // cross-origin-unclean, e.g. the Room Mode compositor). Fall back to no
-      // thumbnail in that case; the feed shows a placeholder, same as Flutter.
-      let thumbBlob: Blob | null = null;
-      try {
-        const el = videoRef.current;
-        if (el && el.videoWidth) {
-          const c = document.createElement('canvas');
-          c.width = el.videoWidth;
-          c.height = el.videoHeight;
-          c.getContext('2d')?.drawImage(el, 0, 0);
-          thumbBlob = await new Promise<Blob | null>((r) => c.toBlob(r, 'image/jpeg', 0.8));
-        }
-      } catch (thumbErr) {
-        console.warn('Thumbnail capture skipped (tainted canvas)', thumbErr);
-      }
+      // Compress (and hard-trim) the clip to a small mp4 in the browser before
+      // upload — parity with the Flutter VideoTrimService. ffmpeg.wasm is loaded
+      // lazily here so it only downloads when someone actually publishes. The
+      // thumbnail is extracted from the encoded mp4, which is more reliable than
+      // a browser canvas (a tainted Room Mode source can block toBlob).
+      setStage('Compressing… 0%');
+      const { transcodeForUpload } = await import('@/lib/video-transcode');
+      const { video: mp4, thumbnail } = await transcodeForUpload(blob, {
+        startMs: trimStart,
+        endMs: trimEnd,
+        durationMs: duration,
+        onProgress: (r) => setStage(`Compressing… ${Math.round(r * 100)}%`),
+      });
+
+      // The mp4 is now hard-cut to [trimStart, trimEnd]. Shift overlay timings
+      // by -trimStart and drop any now outside the window, so effects stay in
+      // sync with the trimmed file (same logic as the Flutter editor).
+      const isTrimmed = trimStart > 50 || trimEnd < duration - 50;
+      const shift = isTrimmed ? trimStart : 0;
+      const length = trimEnd - trimStart;
+      const outZooms = isTrimmed
+        ? zooms
+            .map((z) => ({ ...z, timeMs: z.timeMs - shift }))
+            .filter((z) => z.timeMs >= 0 && z.timeMs + z.durationMs <= length)
+        : zooms;
+      const shiftSpan = <T extends { startMs: number; endMs: number }>(arr: T[]): T[] =>
+        isTrimmed
+          ? arr
+              .map((o) => ({ ...o, startMs: o.startMs - shift, endMs: o.endMs - shift }))
+              .filter((o) => o.startMs >= 0 && o.endMs <= length)
+          : arr;
+
+      setStage('Uploading…');
       await publishClip({
-        videoBlob: blob,
-        thumbBlob,
+        videoBlob: mp4,
+        thumbBlob: thumbnail,
         author,
         caption: caption.trim() || 'Live clip',
         effects: {
           filterId,
-          zooms,
+          zooms: outZooms,
           blurAmount: blur,
           vignetteIntensity: vignette,
-          textOverlays: texts,
-          stickers,
-          trimStartMs: Math.round(trimStart),
-          trimEndMs: Math.round(trimEnd),
+          textOverlays: shiftSpan(texts),
+          stickers: shiftSpan(stickers),
+          // File is pre-cut, so playback applies no further trim offset.
+          trimStartMs: 0,
+          trimEndMs: isTrimmed ? length : 0,
         },
       });
       onClose(true);
@@ -170,6 +187,7 @@ export function PostStreamEditor({
       console.error('Publish failed', e);
       setError('Failed to publish. Please try again.');
       setPublishing(false);
+      setStage(null);
     }
   };
 
@@ -310,7 +328,7 @@ export function PostStreamEditor({
           </button>
           <button onClick={publish} disabled={publishing}
             className="flex-1 py-3 rounded-xl bg-[#FF7043] hover:bg-[#e55a2b] text-white text-sm font-bold disabled:opacity-50">
-            {publishing ? 'Publishing…' : 'Publish'}
+            {publishing ? (stage ?? 'Publishing…') : 'Publish'}
           </button>
         </div>
       </div>
