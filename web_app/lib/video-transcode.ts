@@ -13,11 +13,10 @@
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
 
-// Core is fetched at runtime (via toBlobURL, so the worker can load it
-// same-origin) rather than bundled. Pinned so a CDN update can't change the
-// encoder underneath us.
-const CORE_VERSION = '0.12.10';
-const CORE_BASE = `https://unpkg.com/@ffmpeg/core@${CORE_VERSION}/dist/umd`;
+// Core is self-hosted under /public/ffmpeg (copied from node_modules by
+// scripts/copy-ffmpeg-core.mjs on install/build) — no runtime CDN dependency.
+// Still wrapped via toBlobURL so the ffmpeg worker can load it same-origin.
+const CORE_BASE = '/ffmpeg';
 
 let _ffmpeg: FFmpeg | null = null;
 let _loadPromise: Promise<FFmpeg> | null = null;
