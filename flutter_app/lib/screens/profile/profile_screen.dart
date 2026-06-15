@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../providers/providers.dart';
 import '../../models/app_user.dart';
+import '../../models/streamer_stats.dart';
 import '../../models/video.dart';
 import '../../theme/brand.dart';
+import '../../widgets/system_panel.dart';
 import '../feed/feed_screen.dart' show VideoCard;
 import '../studio/ads_screen.dart';
 import '../../widgets/wallet_badge.dart';
@@ -172,6 +174,14 @@ class _ProfileHeader extends ConsumerWidget {
               _Stat(value: user.followerCount, label: 'Followers'),
               _Stat(value: user.likeCount, label: 'Likes'),
             ],
+          ),
+          const SizedBox(height: 20),
+
+          // LitRPG "System" status card — level + derived stats. No live
+          // stream here, so it shows the lifetime (follower/like) stats only.
+          SystemStatusCard(
+            stats: StreamerStats.from(user: user),
+            name: user.username,
           ),
           const SizedBox(height: 20),
 

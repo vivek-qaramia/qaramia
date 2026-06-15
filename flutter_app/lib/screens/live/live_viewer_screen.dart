@@ -5,6 +5,7 @@ import '../../models/live_stream.dart';
 import '../../models/chat_message.dart';
 import '../../models/gift.dart';
 import '../../models/sponsorship.dart';
+import '../../models/streamer_stats.dart';
 import '../../providers/providers.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/sponsorship_providers.dart';
@@ -18,6 +19,7 @@ import '../../widgets/gift_panel.dart';
 import '../../widgets/gift_goal_bar.dart';
 import '../../widgets/product_drawer.dart';
 import '../../widgets/room_background_selector.dart';
+import '../../widgets/system_panel.dart';
 import '../../widgets/top_gifters_board.dart';
 import '../cart/my_bag_screen.dart';
 import '../wallet/wallet_screen.dart';
@@ -318,6 +320,18 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
             products: _shopMode ? liveStream.featuredProducts : const [],
             featuredAd: _shopMode ? liveStream.featuredAd : null,
           ),
+
+          // Streamer "System" status panel — floating ⚡ button + slide-up
+          // LitRPG stat window, derived from the host's live activity.
+          ref.watch(userByUidProvider(liveStream.hostUid)).maybeWhen(
+                data: (host) => host == null
+                    ? const SizedBox.shrink()
+                    : SystemPanelOverlay(
+                        stats: StreamerStats.from(user: host, stream: liveStream),
+                        name: host.displayName,
+                      ),
+                orElse: () => const SizedBox.shrink(),
+              ),
 
           // Co-host invite banner
           if (_pendingInvite != null)

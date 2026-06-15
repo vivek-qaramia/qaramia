@@ -51,6 +51,13 @@ final currentUserProvider = FutureProvider<AppUser?>((ref) async {
   return ref.watch(authServiceProvider).getUser(user.uid);
 });
 
+/// Live profile of any user by uid — used e.g. to show a streamer's System
+/// status panel (level/stats) to viewers.
+final userByUidProvider =
+    StreamProvider.family<AppUser?, String>((ref, uid) {
+  return ref.watch(userServiceProvider).watchUser(uid);
+});
+
 // Live streams
 final liveStreamsProvider = StreamProvider<List<LiveStream>>((ref) {
   return ref.watch(streamServiceProvider).watchLiveStreams();
