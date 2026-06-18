@@ -8,6 +8,7 @@ import '../../models/video.dart';
 import '../../theme/brand.dart';
 import '../../widgets/system_panel.dart';
 import '../feed/feed_screen.dart' show VideoCard;
+import '../game_zone/game_zone_screen.dart';
 import '../studio/ads_screen.dart';
 import '../../widgets/wallet_badge.dart';
 
@@ -183,6 +184,21 @@ class _ProfileHeader extends ConsumerWidget {
             stats: StreamerStats.from(user: user),
             name: user.username,
           ),
+          const SizedBox(height: 12),
+
+          // Game Zone entry (own profile only) — play daily tasks to earn
+          // attribute points that feed the status card above.
+          if (isSelf)
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const GameZoneScreen()),
+                ),
+                icon: const Text('⚡', style: TextStyle(fontSize: 16)),
+                label: const Text('Game Zone'),
+              ),
+            ),
           const SizedBox(height: 20),
 
           // Follow/Edit button

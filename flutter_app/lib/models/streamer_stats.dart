@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'app_user.dart';
+import 'game.dart' show kAttributeLabels;
 import 'live_stream.dart';
 
 /// One RPG-style stat line: an abbreviation, a label, a 0..1 bar fill, and a
@@ -47,7 +48,10 @@ class StreamerStats {
   static int _levelForXp(int xp) => math.max(1, (math.sqrt(xp / 50)).floor());
 
   factory StreamerStats.from({required AppUser user, LiveStream? stream}) {
-    final xp = _xpOf(user);
+    // Game-earned attribute points also feed XP, so playing Game Zone tasks
+    // visibly levels the streamer up.
+    final earnedTotal = user.attributes.values.fold<int>(0, (a, b) => a + b);
+    final xp = _xpOf(user) + earnedTotal * 5;
     final level = _levelForXp(xp);
     final curBase = 50 * level * level;
     final nextBase = 50 * (level + 1) * (level + 1);
@@ -65,6 +69,18 @@ class StreamerStats {
           : (stream.viewerCount > 0 ? 1.0 : 0.0);
       stats.add(SystemStat(code: 'FOR', label: 'fortune', fill: _sat(stream.totalGifts, 500), display: _short(stream.totalGifts)));
       stats.add(SystemStat(code: 'HYP', label: 'hype', fill: hypeFill, display: '${(hypeFill * 100).round()}%'));
+    }
+
+    // Game-earned attributes (e.g. PWR from Game Zone tasks) as extra lines.
+    final earned = user.attributes.entries.where((e) => e.value > 0).toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    for (final e in earned) {
+      stats.add(SystemStat(
+        code: e.key.toUpperCase(),
+        label: kAttributeLabels[e.key] ?? e.key,
+        fill: _sat(e.value, 200),
+        display: _short(e.value),
+      ));
     }
 
     return StreamerStats(

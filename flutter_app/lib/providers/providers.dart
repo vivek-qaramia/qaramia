@@ -11,6 +11,7 @@ import '../services/video_service.dart';
 import '../services/user_service.dart';
 import '../services/danmaku_service.dart';
 import '../services/gift_catalog_service.dart';
+import '../services/game_service.dart';
 
 // Services
 final authServiceProvider = Provider((ref) => AuthService());
@@ -19,6 +20,7 @@ final videoServiceProvider = Provider((ref) => VideoService());
 final userServiceProvider = Provider((ref) => UserService());
 final danmakuServiceProvider = Provider((ref) => DanmakuService());
 final giftCatalogServiceProvider = Provider((ref) => GiftCatalogService());
+final gameServiceProvider = Provider((ref) => GameService());
 
 /// Which bottom-nav tab is currently active. The feed video player watches
 /// this and pauses when the user navigates away from the Home tab so audio

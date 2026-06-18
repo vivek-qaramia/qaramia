@@ -20,6 +20,11 @@ class AppUser {
   final String? stripeAccountId;
   /// One of: 'not_started' | 'pending' | 'restricted' | 'active'
   final String? stripeAccountStatus;
+  // ── Game Zone — earned attribute points (code → points) and today's task
+  // progress. Attributes feed the System status panel. ───────────────────────
+  final Map<String, int> attributes;
+  final String? gameTasksDate; // 'yyyy-mm-dd' the done-list applies to
+  final List<String> gameTasksDone; // gameIds completed on gameTasksDate
 
   const AppUser({
     required this.uid,
@@ -37,6 +42,9 @@ class AppUser {
     this.estimatedEarningsUsd = 0,
     this.stripeAccountId,
     this.stripeAccountStatus,
+    this.attributes = const {},
+    this.gameTasksDate,
+    this.gameTasksDone = const [],
   });
 
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
@@ -55,6 +63,11 @@ class AppUser {
         estimatedEarningsUsd: (json['estimatedEarningsUsd'] as num?)?.toDouble() ?? 0,
         stripeAccountId: json['stripeAccountId'] as String?,
         stripeAccountStatus: json['stripeAccountStatus'] as String?,
+        attributes: (json['attributes'] as Map<String, dynamic>?)
+                ?.map((k, v) => MapEntry(k, (v as num).toInt())) ??
+            const {},
+        gameTasksDate: json['gameTasksDate'] as String?,
+        gameTasksDone: (json['gameTasksDone'] as List?)?.map((e) => e as String).toList() ?? const [],
       );
 
   Map<String, dynamic> toJson() => {
@@ -73,6 +86,9 @@ class AppUser {
         if (estimatedEarningsUsd > 0) 'estimatedEarningsUsd': estimatedEarningsUsd,
         if (stripeAccountId != null) 'stripeAccountId': stripeAccountId,
         if (stripeAccountStatus != null) 'stripeAccountStatus': stripeAccountStatus,
+        if (attributes.isNotEmpty) 'attributes': attributes,
+        if (gameTasksDate != null) 'gameTasksDate': gameTasksDate,
+        if (gameTasksDone.isNotEmpty) 'gameTasksDone': gameTasksDone,
       };
 
   AppUser copyWith({
@@ -101,5 +117,8 @@ class AppUser {
         ageRange: ageRange ?? this.ageRange,
         country: country ?? this.country,
         estimatedEarningsUsd: estimatedEarningsUsd ?? this.estimatedEarningsUsd,
+        attributes: attributes,
+        gameTasksDate: gameTasksDate,
+        gameTasksDone: gameTasksDone,
       );
 }
