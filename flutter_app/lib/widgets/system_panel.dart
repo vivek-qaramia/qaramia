@@ -206,63 +206,37 @@ class _ExpBar extends StatelessWidget {
   }
 }
 
-/// Floating ⚡ button + slide-up [SystemStatusCard] for the live viewer screen.
-class SystemPanelOverlay extends StatefulWidget {
-  final StreamerStats stats;
-  final String name;
-  const SystemPanelOverlay({super.key, required this.stats, required this.name});
-
-  @override
-  State<SystemPanelOverlay> createState() => _SystemPanelOverlayState();
-}
-
-class _SystemPanelOverlayState extends State<SystemPanelOverlay> {
-  bool _open = false;
+/// Compact, tappable "⚡ Lv.N" badge for the live header — sits next to the
+/// host's name and opens the [SystemStatusCard]. Replaces a second floating
+/// button so the live viewer keeps a single floating control (the product bag).
+class SystemLevelBadge extends StatelessWidget {
+  final int level;
+  final VoidCallback onTap;
+  const SystemLevelBadge({super.key, required this.level, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        // Floating ⚡ trigger — sits above the product bag button.
-        Positioned(
-          right: 16,
-          bottom: 160,
-          child: GestureDetector(
-            onTap: () => setState(() => _open = !_open),
-            child: Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _panelBg,
-                border: Border.all(color: _accent.withValues(alpha: 0.7), width: 1.4),
-                boxShadow: const [BoxShadow(color: _accentDim, blurRadius: 14, spreadRadius: 1)],
-              ),
-              alignment: Alignment.center,
-              child: Text('Lv${widget.stats.level}',
-                  style: const TextStyle(
-                      fontFamily: _mono, color: _accent, fontSize: 13, fontWeight: FontWeight.w800)),
-            ),
-          ),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: _panelBg,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: _accent.withValues(alpha: 0.7), width: 1.2),
+          boxShadow: const [BoxShadow(color: _accentDim, blurRadius: 10)],
         ),
-
-        // Slide-up panel
-        AnimatedPositioned(
-          duration: const Duration(milliseconds: 280),
-          curve: Curves.easeOut,
-          left: 12,
-          right: 12,
-          bottom: _open ? 24 : -460,
-          child: SafeArea(
-            top: false,
-            child: SystemStatusCard(
-              stats: widget.stats,
-              name: widget.name,
-              onClose: () => setState(() => _open = false),
-            ),
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('⚡', style: TextStyle(fontSize: 12)),
+            const SizedBox(width: 4),
+            Text('Lv.$level',
+                style: const TextStyle(
+                    fontFamily: _mono, color: _accent, fontSize: 12, fontWeight: FontWeight.w800)),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

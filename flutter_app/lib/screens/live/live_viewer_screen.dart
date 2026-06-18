@@ -42,6 +42,7 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
   // when there are 2.
   final List<int> _remoteUids = [];
   bool _showGiftPanel = false;
+  bool _systemOpen = false; // host "System" status panel slide-up
   bool _shopMode = true; // Shop/Reels top-right toggle (Shop = default)
   Map<String, dynamic>? _pendingInvite;
   final _chatCtrl = TextEditingController();
@@ -238,6 +239,13 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
     final streamAsync = ref.watch(singleStreamProvider(widget.stream.id));
     final liveStream = streamAsync.valueOrNull ?? widget.stream;
 
+    // Host's live "System" stats (level + CHA/INF/FOR/HYPE), shown as a Lv badge
+    // in the header that opens the slide-up status panel. Null until loaded.
+    final hostUser = ref.watch(userByUidProvider(liveStream.hostUid)).valueOrNull;
+    final hostStats = hostUser != null
+        ? StreamerStats.from(user: hostUser, stream: liveStream)
+        : null;
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -321,18 +329,6 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
             featuredAd: _shopMode ? liveStream.featuredAd : null,
           ),
 
-          // Streamer "System" status panel — floating ⚡ button + slide-up
-          // LitRPG stat window, derived from the host's live activity.
-          ref.watch(userByUidProvider(liveStream.hostUid)).maybeWhen(
-                data: (host) => host == null
-                    ? const SizedBox.shrink()
-                    : SystemPanelOverlay(
-                        stats: StreamerStats.from(user: host, stream: liveStream),
-                        name: host.displayName,
-                      ),
-                orElse: () => const SizedBox.shrink(),
-              ),
-
           // Co-host invite banner
           if (_pendingInvite != null)
             Positioned(
@@ -390,6 +386,13 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
                             viewerCount: liveStream.viewerCount,
                           ),
                         ),
+                        if (hostStats != null) ...[
+                          const SizedBox(width: 8),
+                          SystemLevelBadge(
+                            level: hostStats.level,
+                            onTap: () => setState(() => _systemOpen = !_systemOpen),
+                          ),
+                        ],
                         const SizedBox(width: 8),
                         _ShopReelsToggle(
                           selected: _shopMode,
@@ -514,6 +517,24 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
               child: GiftPanel(
                 stream: liveStream,
                 onGiftSelected: (gift, {sponsorship}) => _sendGift(gift, sponsorship: sponsorship),
+              ),
+            ),
+
+          // Host "System" status panel — slides up when the Lv badge is tapped.
+          if (hostStats != null)
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 280),
+              curve: Curves.easeOut,
+              left: 12,
+              right: 12,
+              bottom: _systemOpen ? 24 : -460,
+              child: SafeArea(
+                top: false,
+                child: SystemStatusCard(
+                  stats: hostStats,
+                  name: hostUser!.displayName,
+                  onClose: () => setState(() => _systemOpen = false),
+                ),
               ),
             ),
         ],
@@ -667,13 +688,15 @@ class _TopBarState extends ConsumerState<_TopBar> {
     // a tiny red "Live" tag overlapping the avatar's bottom.
     return Row(
       children: [
-        Container(
+        Flexible(
+          child: Container(
           padding: const EdgeInsets.fromLTRB(4, 4, 12, 4),
           decoration: BoxDecoration(
             color: Colors.black.withValues(alpha: 0.45),
             borderRadius: BorderRadius.circular(999),
           ),
           child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Stack(
                 clipBehavior: Clip.none,
@@ -701,23 +724,27 @@ class _TopBarState extends ConsumerState<_TopBar> {
                 ],
               ),
               const SizedBox(width: 10),
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.hostUsername,
-                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700),
-                  ),
-                  Row(
-                    children: [
-                      const Icon(Icons.remove_red_eye_outlined, color: Colors.white70, size: 11),
-                      const SizedBox(width: 3),
-                      Text('${widget.viewerCount} Viewers',
-                          style: const TextStyle(color: Colors.white70, fontSize: 10)),
-                    ],
-                  ),
-                ],
+              Flexible(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.hostUsername,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700),
+                    ),
+                    Row(
+                      children: [
+                        const Icon(Icons.remove_red_eye_outlined, color: Colors.white70, size: 11),
+                        const SizedBox(width: 3),
+                        Text('${widget.viewerCount} Viewers',
+                            style: const TextStyle(color: Colors.white70, fontSize: 10)),
+                      ],
+                    ),
+                  ],
+                ),
               ),
               if (!isSelf) ...[
                 const SizedBox(width: 10),
@@ -739,7 +766,7 @@ class _TopBarState extends ConsumerState<_TopBar> {
               ],
             ],
           ),
-        ),
+        )),
       ],
     );
   }
