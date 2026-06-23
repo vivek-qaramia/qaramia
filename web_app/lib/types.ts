@@ -39,6 +39,12 @@ export interface LiveStream {
   endedAt?: Date;
   featuredProducts?: ProductInfo[];
   featuredAd?: Ad;
+  // In-stream game (Game Zone Phase 2/3) — while active, the game+face PiP is
+  // published on a second connection under gameScreenUid; viewers render that
+  // uid full-screen.
+  gameActive?: boolean;
+  gameScreenUid?: number;
+  activeGameName?: string;
 }
 
 export const PRODUCT_CATEGORIES = ['beauty', 'food', 'tech', 'fitness', 'fashion', 'home', 'other'] as const;

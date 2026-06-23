@@ -21,6 +21,11 @@ import AgoraRTC, { ILocalAudioTrack, ICameraVideoTrack } from 'agora-rtc-sdk-ng'
 
 const AGORA_APP_ID = process.env.NEXT_PUBLIC_AGORA_APP_ID ?? '';
 
+// Must match _kScreenShareUid in the Flutter go_live_screen — the host
+// publishes the in-stream game (game + face PiP) on a second connection under
+// this uid. Viewers render it full-screen while gameActive.
+const SCREEN_SHARE_UID = 424242;
+
 export default function LiveView({ streamId }: { streamId: string }) {
   const stream = useSingleStream(streamId);
   const messages = useDanmaku(streamId);
@@ -51,6 +56,8 @@ export default function LiveView({ streamId }: { streamId: string }) {
   // hostVideoRef; the second in cohostVideoRef. Cleared on user-unpublished.
   const hostVideoRef = useRef<HTMLDivElement>(null);
   const cohostVideoRef = useRef<HTMLDivElement>(null);
+  // Full-screen container for the host's in-stream game screen-share track.
+  const gameVideoRef = useRef<HTMLDivElement>(null);
   const remoteSlotsRef = useRef<Map<string | number, 'host' | 'cohost'>>(new Map());
   const [cohostActive, setCohostActive] = useState(false);
   const coHostPreviewRef = useRef<HTMLDivElement>(null);
@@ -88,6 +95,12 @@ export default function LiveView({ streamId }: { streamId: string }) {
       try {
         await client.subscribe(remoteUser, mediaType);
         if (mediaType !== 'video' || !remoteUser.videoTrack) return;
+        // The in-stream game's screen-share (already has the face PiP composited
+        // by MediaProjection) — render full-screen, not as a co-host tile.
+        if (Number(remoteUser.uid) === SCREEN_SHARE_UID) {
+          if (gameVideoRef.current) remoteUser.videoTrack.play(gameVideoRef.current);
+          return;
+        }
         const slots = remoteSlotsRef.current;
         let slot = slots.get(remoteUser.uid);
         if (!slot) {
@@ -325,6 +338,15 @@ export default function LiveView({ streamId }: { streamId: string }) {
           <div ref={coHostPreviewRef} className={isCoHost ? 'flex-1 min-w-0' : 'hidden'} />
           {/* Someone else's co-host video when I'm just watching */}
           <div ref={cohostVideoRef} className={(cohostActive && !isCoHost) ? 'flex-1 min-w-0' : 'hidden'} />
+          {/* In-stream game: the screen-share track (game + face PiP) shown
+              full-screen over everything while the host is playing. Always
+              mounted (hidden when idle) so the track can play into it. */}
+          <div ref={gameVideoRef} className={stream.gameActive ? 'absolute inset-0 z-20 bg-black' : 'hidden'} />
+          {stream.gameActive && (
+            <div className="absolute top-4 right-4 z-30 px-3 py-1 rounded-full bg-black/60 backdrop-blur text-[#5BE1FF] text-sm font-bold">
+              🎮 {stream.activeGameName ?? 'Playing a game'}
+            </div>
+          )}
         </div>
 
         <div className="absolute top-4 left-4 flex items-center gap-3 z-10">
