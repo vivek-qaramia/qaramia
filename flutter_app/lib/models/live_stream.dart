@@ -26,6 +26,13 @@ class LiveStream {
   // ── Live commerce surface (multimodal product detection) ──────────────────
   final List<ProductInfo> featuredProducts;
   final Ad? featuredAd;
+  // ── In-stream game (Game Zone Phase 2) ─────────────────────────────────────
+  // While the host plays a game live, the game + face PiP are published on a
+  // second Agora connection (screen capture) under [gameScreenUid]; viewers
+  // render that uid full-screen instead of the camera.
+  final bool gameActive;
+  final int? gameScreenUid;
+  final String? activeGameName;
 
   const LiveStream({
     required this.id,
@@ -47,6 +54,9 @@ class LiveStream {
     this.giftGoalTarget = 0,
     this.featuredProducts = const [],
     this.featuredAd,
+    this.gameActive = false,
+    this.gameScreenUid,
+    this.activeGameName,
   });
 
   bool get hasGiftGoal => giftGoalTarget > 0;
@@ -86,6 +96,9 @@ class LiveStream {
                 'id': (json['featuredAd'] as Map<String, dynamic>)['id'] ?? '',
               })
             : null,
+        gameActive: json['gameActive'] as bool? ?? false,
+        gameScreenUid: (json['gameScreenUid'] as num?)?.toInt(),
+        activeGameName: json['activeGameName'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -108,6 +121,9 @@ class LiveStream {
         'endedAt': endedAt != null ? Timestamp.fromDate(endedAt!) : null,
         'featuredProducts': featuredProducts.map((p) => p.toJson()).toList(),
         if (featuredAd != null) 'featuredAd': featuredAd!.toJson(),
+        'gameActive': gameActive,
+        if (gameScreenUid != null) 'gameScreenUid': gameScreenUid,
+        if (activeGameName != null) 'activeGameName': activeGameName,
       };
 
   bool get isLive => status == StreamStatus.live;

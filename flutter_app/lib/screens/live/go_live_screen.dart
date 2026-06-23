@@ -7,9 +7,12 @@ import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/live_stream.dart';
+import '../../models/game.dart';
 import '../../providers/providers.dart';
 import '../../services/cohost_service.dart';
+import '../../services/game_service.dart';
 import '../../models/video_filter.dart';
+import '../../widgets/games/tap_targets_game.dart';
 import '../../theme/brand.dart';
 import 'post_stream_editor_screen.dart';
 import '../../widgets/broadcast_scan_button.dart';
@@ -26,6 +29,12 @@ import '../../providers/session_stats_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 const _agoraAppId = String.fromEnvironment('AGORA_APP_ID', defaultValue: 'YOUR_AGORA_APP_ID');
+
+/// Dedicated Agora uid for the second (screen-share) connection used while a
+/// host plays a game live. Per-channel, so a fixed constant is safe. The host's
+/// two connections see each other as remote users, so this (and the host's own
+/// camera uid) must be ignored in onUserJoined.
+const _kScreenShareUid = 424242;
 
 class GoLiveScreen extends ConsumerStatefulWidget {
   const GoLiveScreen({super.key});
@@ -57,6 +66,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   // co-host so we don't need a list yet — the first remote-published event
   // wins and unpublish clears it.
   int? _remoteUid;
+  // The host's own camera-connection uid (assigned at join). Tracked so the
+  // screen-share connection's view of it isn't mistaken for a co-host.
+  int? _hostCameraUid;
   // When true, the broadcast is recorded (Agora media recorder) so the host can
   // edit + publish a clip after End. Default ON, persisted to SharedPreferences.
   // Toggling off skips _startRecording entirely.
@@ -184,6 +196,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         RtcEngineEventHandler(
           onJoinChannelSuccess: (RtcConnection conn, int elapsed) {
             debugPrint('[GoLive] onJoinChannelSuccess uid=${conn.localUid} elapsed=${elapsed}ms');
+            // The screen-share connection also fires this; only the camera
+            // connection drives recording + is the host's own uid.
+            if (conn.localUid == _kScreenShareUid) return;
+            _hostCameraUid = conn.localUid;
             if (mounted && _recordEnabled && !_isRecording) {
               _startRecording(stream, conn.localUid ?? 0);
             }
@@ -193,6 +209,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           // audience AND broadcasters to other broadcasters, so we just
           // need the uid to render their tile side-by-side in _BroadcastView.
           onUserJoined: (RtcConnection conn, int remoteUid, int elapsed) {
+            // The host's own two connections (camera + screen-share during a
+            // game) see each other as remote users — ignore both so we never
+            // render a split-screen with ourselves (which freezes on return).
+            if (remoteUid == _kScreenShareUid || remoteUid == _hostCameraUid) {
+              return;
+            }
             debugPrint('[GoLive] co-host joined uid=$remoteUid');
             if (!mounted) return;
             setState(() => _remoteUid = remoteUid);
@@ -745,11 +767,24 @@ class _BroadcastViewState extends ConsumerState<_BroadcastView> {
   // (viewer-count tick, danmaku delivery, screen-recording display events).
   // Constructing a fresh controller inside build() leaves the camera preview
   // surface unrendered.
-  late final VideoViewController _videoController;
+  // Recreated (fresh controller + fresh view key) on every game transition: a
+  // screen-capture session kills the local preview texture, so reusing/moving
+  // the view leaves it frozen or black. A brand-new controller+view fed by
+  // startPreview is the only reliable way to revive it.
+  late VideoViewController _videoController;
+  int _camEpoch = 0;
 
   // Agora's capture starts on the front camera; switchCamera() toggles. Tracked
   // only to flip the button label between Front/Rear.
   bool _facingFront = true;
+
+  // ── In-stream Game Zone (Phase 2) ──────────────────────────────────────────
+  // When [_activeGame] is set, the streamer is playing a game live: the Agora
+  // broadcast is switched from the camera track to the screen-capture track so
+  // viewers see the game + a face PiP. [_switchingCapture] guards the async
+  // track swap.
+  Game? _activeGame;
+  bool _switchingCapture = false;
 
   @override
   void initState() {
@@ -791,6 +826,161 @@ class _BroadcastViewState extends ConsumerState<_BroadcastView> {
     }
   }
 
+  /// Rebuild the local preview against a fresh controller + view key. Call
+  /// inside setState. The previous texture is dead after a screen-capture
+  /// session, so only a brand-new view (fed by startPreview) renders again.
+  void _resetCameraView() {
+    _videoController = VideoViewController(
+      rtcEngine: widget.engine,
+      canvas: const VideoCanvas(uid: 0),
+      useFlutterTexture: true,
+    );
+    _camEpoch++;
+  }
+
+  /// Bottom sheet of today's Game Zone tasks; tapping one starts it live.
+  void _openGamePicker() {
+    final tasks = ref.read(gameServiceProvider).tasksForDay(DateTime.now());
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF0A1430),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetCtx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('⚡ Play a game live',
+                  style: TextStyle(color: Color(0xFFCFE8FF), fontSize: 16, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 12),
+              for (final g in tasks)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Text(g.emoji, style: const TextStyle(fontSize: 28)),
+                  title: Text(g.name, style: const TextStyle(color: Color(0xFFCFE8FF), fontWeight: FontWeight.w700)),
+                  subtitle: Text('${g.difficulty} · ⏱ ${g.timeLimitSec}s · +${g.rewardPoints} ${kAttributeLabels[g.attribute] ?? g.attribute}',
+                      style: const TextStyle(color: Color(0xFF6E86B0), fontSize: 12)),
+                  trailing: const Icon(Icons.play_arrow, color: Color(0xFF5BE1FF)),
+                  onTap: () {
+                    Navigator.of(sheetCtx).pop();
+                    _startGame(g);
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  RtcConnection get _screenConn =>
+      RtcConnection(channelId: stream.agoraChannel, localUid: _kScreenShareUid);
+
+  /// Start the game live. The screen (game + face PiP) is published on a SECOND
+  /// Agora connection so the camera track — and therefore the recorder and the
+  /// local preview — is never touched. Viewers switch to the screen uid via the
+  /// gameActive flag on the stream doc. Best-effort revert on failure.
+  Future<void> _startGame(Game game) async {
+    if (_switchingCapture || _activeGame != null) return;
+    setState(() => _switchingCapture = true);
+    try {
+      await engine.startScreenCapture(
+        const ScreenCaptureParameters2(captureAudio: false, captureVideo: true),
+      );
+      await (engine as RtcEngineEx).joinChannelEx(
+        token: '',
+        connection: _screenConn,
+        options: const ChannelMediaOptions(
+          clientRoleType: ClientRoleType.clientRoleBroadcaster,
+          publishScreenCaptureVideo: true,
+          publishScreenCaptureAudio: false,
+          publishCameraTrack: false,
+          publishMicrophoneTrack: false,
+          autoSubscribeAudio: false,
+          autoSubscribeVideo: false,
+        ),
+      );
+      await ref.read(streamServiceProvider).setGameActive(stream.id, _kScreenShareUid, game.name);
+      if (mounted) {
+        setState(() {
+          _resetCameraView();
+          _activeGame = game;
+        });
+        try { await engine.startPreview(); } catch (_) {}
+      }
+    } catch (e) {
+      debugPrint('[GoLive] startGame failed: $e');
+      try {
+        await (engine as RtcEngineEx).leaveChannelEx(connection: _screenConn);
+      } catch (_) {}
+      try {
+        await engine.stopScreenCapture();
+      } catch (_) {}
+      try {
+        await ref.read(streamServiceProvider).clearGameActive(stream.id);
+      } catch (_) {}
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not start the game (screen capture denied?)')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _switchingCapture = false);
+    }
+  }
+
+  /// Game finished: restore the camera broadcast, stop screen capture, and
+  /// award attribute points on success (reuses the Game Zone service).
+  Future<void> _endGame(GameResult result, Game game) async {
+    if (mounted) setState(() => _switchingCapture = true);
+    try {
+      // Leave only the screen connection + stop capture (camera connection
+      // untouched).
+      await (engine as RtcEngineEx).leaveChannelEx(connection: _screenConn);
+      await engine.stopScreenCapture();
+      await ref.read(streamServiceProvider).clearGameActive(stream.id);
+    } catch (e) {
+      debugPrint('[GoLive] endGame restore failed: $e');
+    }
+    // Rebuild the local preview against a fresh controller/view, then restart
+    // the camera preview to feed it (the old texture is dead post-capture).
+    if (mounted) {
+      setState(() {
+        _resetCameraView();
+        _activeGame = null;
+        _switchingCapture = false;
+      });
+    }
+    try {
+      await engine.startPreview();
+    } catch (_) {}
+    debugPrint('[GoLive] game ended — camera view reset');
+
+    if (result.success) {
+      final uid = ref.read(authStateProvider).valueOrNull?.uid;
+      if (uid != null) {
+        final user = ref.read(currentUserProvider).valueOrNull;
+        final today = GameService.dayKey(DateTime.now());
+        final done = user?.gameTasksDate == today ? user!.gameTasksDone : const <String>[];
+        try {
+          await ref.read(gameServiceProvider).completeTask(
+                uid: uid, game: game, day: DateTime.now(), doneToday: done);
+          ref.invalidate(currentUserProvider);
+        } catch (_) {}
+      }
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(result.success
+            ? '⚡ Cleared! +${game.rewardPoints} ${kAttributeLabels[game.attribute] ?? game.attribute}'
+            : 'Game over — score ${result.score}/${game.successScore}'),
+      ));
+    }
+  }
+
   Widget _videoFor({required bool local}) {
     final controller = local
         ? _videoController
@@ -800,7 +990,10 @@ class _BroadcastViewState extends ConsumerState<_BroadcastView> {
             connection: RtcConnection(channelId: widget.stream.agoraChannel),
             useFlutterTexture: true,
           );
-    final view = AgoraVideoView(controller: controller);
+    final view = AgoraVideoView(
+      key: local ? ValueKey('cam-$_camEpoch') : null,
+      controller: controller,
+    );
     if (!local) return view;
     final filter = VideoFilter.byId(filterId);
     if (!filter.hasColorOverlay) return view;
@@ -828,15 +1021,20 @@ class _BroadcastViewState extends ConsumerState<_BroadcastView> {
           // would dispose the AgoraVideoView's Element and the underlying
           // Texture would render blank. The co-host tile is added inside the
           // Row only when a remote uid is present.
-          Row(
-            children: [
-              Expanded(child: _videoFor(local: true)),
-              if (remoteUid != null) ...[
-                Container(width: 2, color: Colors.white24),
-                Expanded(child: _videoFor(local: false)),
+          // Base video layer. During a game the single local view moves to the
+          // PiP (rendered in the game overlay below), so the base is just black.
+          if (_activeGame == null)
+            Row(
+              children: [
+                Expanded(child: _videoFor(local: true)),
+                if (remoteUid != null) ...[
+                  Container(width: 2, color: Colors.white24),
+                  Expanded(child: _videoFor(local: false)),
+                ],
               ],
-            ],
-          ),
+            )
+          else
+            const ColoredBox(color: Colors.black),
           DanmakuOverlay(messages: messages),
           GiftAnimationOverlay(streamId: stream.id),
           Positioned(
@@ -987,6 +1185,30 @@ class _BroadcastViewState extends ConsumerState<_BroadcastView> {
               ),
             ),
           ),
+          // Play a Game Zone task live (Phase 2). Hidden while a game is active.
+          if (_activeGame == null)
+            Positioned(
+              right: 16, top: 424,
+              child: GestureDetector(
+                onTap: _switchingCapture ? null : _openGamePicker,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.45),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: const Color(0xFF5BE1FF).withValues(alpha: 0.7)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('🎮', style: TextStyle(fontSize: 14)),
+                      SizedBox(width: 6),
+                      Text('Game', style: TextStyle(color: Color(0xFF5BE1FF), fontSize: 12, fontWeight: FontWeight.w700)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           // Session earnings card (left side, above the chat overlay)
           Positioned(
             left: 12, top: 64,
@@ -1003,6 +1225,37 @@ class _BroadcastViewState extends ConsumerState<_BroadcastView> {
                 .read(sessionStatsProvider(stream.id).notifier)
                 .onAffiliateClick(),
           ),
+
+          // In-stream game overlay (Phase 2). Full-screen game with a face PiP
+          // in the corner; the whole screen is what screen capture broadcasts,
+          // so viewers see the game + the streamer's face.
+          if (_activeGame != null)
+            Positioned.fill(
+              child: Stack(
+                children: [
+                  TapTargetsGame(
+                    game: _activeGame!,
+                    onFinish: (r) => _endGame(r, _activeGame!),
+                  ),
+                  Positioned(
+                    right: 12,
+                    top: MediaQuery.of(context).padding.top + 12,
+                    child: Container(
+                      width: 96,
+                      height: 140,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFF5BE1FF), width: 1.5),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      // Same keyed local view as the full-screen base — moved
+                      // here, not duplicated, so the texture isn't starved.
+                      child: _videoFor(local: true),
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );

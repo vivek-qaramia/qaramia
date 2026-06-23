@@ -230,6 +230,25 @@ class StreamService {
     });
   }
 
+  /// Signal that the host has started an in-stream game published on the
+  /// screen-share track [screenUid]; viewers switch to rendering that uid.
+  Future<void> setGameActive(String streamId, int screenUid, String gameName) async {
+    await _db.collection('streams').doc(streamId).update({
+      'gameActive': true,
+      'gameScreenUid': screenUid,
+      'activeGameName': gameName,
+    });
+  }
+
+  /// Clear the in-stream game state — viewers return to the camera track.
+  Future<void> clearGameActive(String streamId) async {
+    await _db.collection('streams').doc(streamId).update({
+      'gameActive': false,
+      'gameScreenUid': null,
+      'activeGameName': null,
+    });
+  }
+
   Stream<List<GiftEvent>> watchGifts(String streamId) {
     return _db
         .collection('streams')

@@ -255,7 +255,17 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
           // co-host are publishing, single-tile otherwise. Each
           // AgoraVideoView is for a specific Agora uid; viewers in audience
           // role get auto-subscribed to all broadcasters on the channel.
-          if (_remoteUids.length == 2)
+          if (liveStream.gameActive && liveStream.gameScreenUid != null)
+            // Host is playing a game live — its screen-share track already
+            // contains the game + the host's face PiP, so render it full-screen.
+            AgoraVideoView(
+              controller: VideoViewController.remote(
+                rtcEngine: _engine!,
+                canvas: VideoCanvas(uid: liveStream.gameScreenUid!),
+                connection: RtcConnection(channelId: widget.stream.agoraChannel),
+              ),
+            )
+          else if (_remoteUids.length == 2)
             Row(
               children: [
                 Expanded(
