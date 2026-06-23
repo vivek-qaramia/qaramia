@@ -5,7 +5,7 @@ import '../../models/app_user.dart';
 import '../../models/game.dart';
 import '../../providers/providers.dart';
 import '../../services/game_service.dart';
-import '../../widgets/games/tap_targets_game.dart';
+import '../../widgets/games/game_renderer.dart';
 
 const _bg = Color(0xFF0A1430);
 const _accent = Color(0xFF5BE1FF);
@@ -88,20 +88,28 @@ class _GameZoneScreenState extends ConsumerState<GameZoneScreen> {
           if (user == null) {
             return const Center(child: Text('Sign in to play.', style: TextStyle(color: _inkMute)));
           }
-          final tasks = ref.read(gameServiceProvider).tasksForDay(DateTime.now());
+          final games = Game.catalog.where((g) => g.enabled).toList();
+          // Today's rotating daily picks — surfaced as a badge; all games stay
+          // playable so newly-added engines aren't hidden by the rotation.
+          final dailyIds = ref
+              .read(gameServiceProvider)
+              .tasksForDay(DateTime.now())
+              .map((g) => g.id)
+              .toSet();
           final doneToday = user.gameTasksDate == today ? user.gameTasksDone : const <String>[];
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
               _AttributeStrip(user: user),
               const SizedBox(height: 8),
-              const Text("Today's tasks",
+              const Text('GAMES',
                   style: TextStyle(color: _inkMute, fontSize: 12, letterSpacing: 1.5, fontWeight: FontWeight.w800)),
               const SizedBox(height: 10),
-              for (final g in tasks) ...[
+              for (final g in games) ...[
                 _TaskCard(
                   game: g,
                   done: doneToday.contains(g.id),
+                  isDaily: dailyIds.contains(g.id),
                   onPlay: () => _play(g, user.uid, doneToday),
                 ),
                 const SizedBox(height: 12),
@@ -168,8 +176,9 @@ class _AttributeStrip extends StatelessWidget {
 class _TaskCard extends StatelessWidget {
   final Game game;
   final bool done;
+  final bool isDaily;
   final VoidCallback onPlay;
-  const _TaskCard({required this.game, required this.done, required this.onPlay});
+  const _TaskCard({required this.game, required this.done, required this.isDaily, required this.onPlay});
 
   @override
   Widget build(BuildContext context) {
@@ -188,8 +197,28 @@ class _TaskCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(game.name,
-                    style: const TextStyle(color: _ink, fontSize: 15, fontWeight: FontWeight.w800)),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(game.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: _ink, fontSize: 15, fontWeight: FontWeight.w800)),
+                    ),
+                    if (isDaily) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: _accent.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: const Text('DAILY ⭐',
+                            style: TextStyle(color: _accent, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+                      ),
+                    ],
+                  ],
+                ),
                 const SizedBox(height: 2),
                 Text('${game.difficulty} · ⏱ ${game.timeLimitSec}s · +${game.rewardPoints} ${(kAttributeLabels[game.attribute] ?? game.attribute)}',
                     style: const TextStyle(color: _inkMute, fontSize: 11)),
@@ -228,12 +257,7 @@ class _GamePlayScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _bg,
-      body: switch (game.type) {
-        GameType.tapTargets => TapTargetsGame(
-            game: game,
-            onFinish: (r) => Navigator.of(context).pop(r),
-          ),
-      },
+      body: buildGameWidget(game, onFinish: (r) => Navigator.of(context).pop(r)),
     );
   }
 }

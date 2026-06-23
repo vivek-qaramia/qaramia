@@ -6,7 +6,7 @@
 // a game later = add an entry here (and, when authoring moves server-side, a
 // `games/{id}` Firestore doc). The daily task list is picked from [catalog].
 
-enum GameType { tapTargets }
+enum GameType { tapTargets, fruitSlice, findObject }
 
 /// Human labels for attribute codes stored in `users/{uid}.attributes`.
 const Map<String, String> kAttributeLabels = {
@@ -83,6 +83,30 @@ class Game {
       attribute: 'pwr',
       rewardPoints: 35,
       successScore: 34,
+    ),
+    Game(
+      id: 'fruit_medium',
+      name: 'Fruit Frenzy',
+      type: GameType.fruitSlice,
+      emoji: '🍉',
+      description: 'Swipe to slice the falling fruit before it drops.',
+      timeLimitSec: 30,
+      difficulty: 'Medium',
+      attribute: 'pwr',
+      rewardPoints: 20,
+      successScore: 18,
+    ),
+    Game(
+      id: 'find_medium',
+      name: 'Spot It',
+      type: GameType.findObject,
+      emoji: '🔎',
+      description: 'Find and tap the matching critter, round after round.',
+      timeLimitSec: 30,
+      difficulty: 'Medium',
+      attribute: 'pwr',
+      rewardPoints: 20,
+      successScore: 12,
     ),
   ];
 

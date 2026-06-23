@@ -12,7 +12,7 @@ import '../../providers/providers.dart';
 import '../../services/cohost_service.dart';
 import '../../services/game_service.dart';
 import '../../models/video_filter.dart';
-import '../../widgets/games/tap_targets_game.dart';
+import '../../widgets/games/game_renderer.dart';
 import '../../theme/brand.dart';
 import 'post_stream_editor_screen.dart';
 import '../../widgets/broadcast_scan_button.dart';
@@ -840,7 +840,7 @@ class _BroadcastViewState extends ConsumerState<_BroadcastView> {
 
   /// Bottom sheet of today's Game Zone tasks; tapping one starts it live.
   void _openGamePicker() {
-    final tasks = ref.read(gameServiceProvider).tasksForDay(DateTime.now());
+    final tasks = Game.catalog.where((g) => g.enabled).toList();
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: const Color(0xFF0A1430),
@@ -1233,8 +1233,8 @@ class _BroadcastViewState extends ConsumerState<_BroadcastView> {
             Positioned.fill(
               child: Stack(
                 children: [
-                  TapTargetsGame(
-                    game: _activeGame!,
+                  buildGameWidget(
+                    _activeGame!,
                     onFinish: (r) => _endGame(r, _activeGame!),
                   ),
                   Positioned(
