@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/live_stream.dart';
 import '../../models/game.dart';
+import '../../models/game_challenge.dart';
 import '../../providers/providers.dart';
 import '../../services/cohost_service.dart';
 import '../../services/game_service.dart';
@@ -981,6 +982,26 @@ class _BroadcastViewState extends ConsumerState<_BroadcastView> {
     }
   }
 
+  /// Host accepts a viewer's challenge: mark accepted (the viewer's client then
+  /// settles coins → diamonds) and launch the game live.
+  Future<void> _acceptChallenge(GameChallenge ch) async {
+    final game = Game.byId(ch.gameId);
+    try {
+      await ref.read(gameChallengeServiceProvider).accept(stream.id, ch.id);
+    } catch (e) {
+      debugPrint('[GoLive] accept challenge failed: $e');
+    }
+    if (game != null) await _startGame(game);
+  }
+
+  Future<void> _declineChallenge(GameChallenge ch) async {
+    try {
+      await ref.read(gameChallengeServiceProvider).decline(stream.id, ch.id);
+    } catch (e) {
+      debugPrint('[GoLive] decline challenge failed: $e');
+    }
+  }
+
   Widget _videoFor({required bool local}) {
     final controller = local
         ? _videoController
@@ -1008,6 +1029,11 @@ class _BroadcastViewState extends ConsumerState<_BroadcastView> {
     final messages = ref.watch(danmakuMessagesProvider(stream.id));
     final streamAsync = ref.watch(singleStreamProvider(stream.id));
     final liveStream = streamAsync.valueOrNull ?? stream;
+
+    // Oldest pending viewer challenge — prompt the host to accept/decline, but
+    // only when idle (no game running, not mid-capture-swap).
+    final pending = ref.watch(pendingChallengesProvider(stream.id)).valueOrNull ?? const <GameChallenge>[];
+    final challenge = (_activeGame == null && !_switchingCapture && pending.isNotEmpty) ? pending.first : null;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -1225,6 +1251,60 @@ class _BroadcastViewState extends ConsumerState<_BroadcastView> {
                 .read(sessionStatsProvider(stream.id).notifier)
                 .onAffiliateClick(),
           ),
+
+          // Pending viewer challenge prompt (Phase 3c).
+          if (challenge != null)
+            Positioned(
+              left: 12,
+              right: 12,
+              top: MediaQuery.of(context).padding.top + 96,
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xF20A1430),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFF5BE1FF), width: 1.2),
+                  boxShadow: const [BoxShadow(color: Color(0x335BE1FF), blurRadius: 16)],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('🎮 ${challenge.fromUsername} dares you!',
+                        style: const TextStyle(color: Color(0xFFCFE8FF), fontSize: 14, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 2),
+                    Text('Play ${challenge.gameName} · earn 💎${challenge.coins ~/ 2}',
+                        style: const TextStyle(color: Color(0xFF6E86B0), fontSize: 12)),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        GestureDetector(
+                          onTap: () => _declineChallenge(challenge),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            child: Text('Decline', style: TextStyle(color: Color(0xFF6E86B0), fontWeight: FontWeight.w700)),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () => _acceptChallenge(challenge),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF5BE1FF),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: const Text('Accept',
+                                style: TextStyle(color: Color(0xFF0A1430), fontWeight: FontWeight.w900)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
           // In-stream game overlay (Phase 2). Full-screen game with a face PiP
           // in the corner; the whole screen is what screen capture broadcasts,

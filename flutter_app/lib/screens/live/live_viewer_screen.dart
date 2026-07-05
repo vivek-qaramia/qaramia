@@ -6,6 +6,8 @@ import '../../models/chat_message.dart';
 import '../../models/gift.dart';
 import '../../models/sponsorship.dart';
 import '../../models/streamer_stats.dart';
+import '../../models/game.dart';
+import '../../models/game_challenge.dart';
 import '../../providers/providers.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/sponsorship_providers.dart';
@@ -43,6 +45,9 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
   final List<int> _remoteUids = [];
   bool _showGiftPanel = false;
   bool _systemOpen = false; // host "System" status panel slide-up
+  // Challenge ids already settled (paid/failed) by this viewer, so the
+  // accepted-challenge listener doesn't double-charge.
+  final Set<String> _settledChallenges = {};
   bool _shopMode = true; // Shop/Reels top-right toggle (Shop = default)
   Map<String, dynamic>? _pendingInvite;
   final _chatCtrl = TextEditingController();
@@ -159,6 +164,61 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
     );
   }
 
+  /// Bottom sheet to dare the streamer to a game for coins. Coins are only
+  /// charged if the streamer accepts (settled by this viewer's client then).
+  void _openChallengeSheet() {
+    final user = ref.read(authStateProvider).valueOrNull;
+    if (user == null) return;
+    final currentUser = ref.read(currentUserProvider).valueOrNull;
+    final games = Game.catalog.where((g) => g.enabled).toList();
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF0A1430),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetCtx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('🎮 Dare the streamer',
+                  style: TextStyle(color: Color(0xFFCFE8FF), fontSize: 16, fontWeight: FontWeight.w800)),
+              const Text('They earn diamonds if they accept and play.',
+                  style: TextStyle(color: Color(0xFF6E86B0), fontSize: 12)),
+              const SizedBox(height: 8),
+              for (final g in games)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Text(g.emoji, style: const TextStyle(fontSize: 26)),
+                  title: Text(g.name, style: const TextStyle(color: Color(0xFFCFE8FF), fontWeight: FontWeight.w700)),
+                  subtitle: Text('${g.difficulty} · ⏱ ${g.timeLimitSec}s',
+                      style: const TextStyle(color: Color(0xFF6E86B0), fontSize: 12)),
+                  trailing: Text('🪙 ${g.challengeCost}',
+                      style: const TextStyle(color: Color(0xFFFFD166), fontWeight: FontWeight.w800)),
+                  onTap: () async {
+                    Navigator.of(sheetCtx).pop();
+                    await ref.read(gameChallengeServiceProvider).send(
+                          streamId: widget.stream.id,
+                          fromUid: user.uid,
+                          fromUsername: currentUser?.username ?? 'viewer',
+                          game: g,
+                        );
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Challenge sent: ${g.name} — waiting for the streamer…')),
+                      );
+                    }
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _sendGift(GiftType gift, {Sponsorship? sponsorship}) async {
     final user = ref.read(authStateProvider).valueOrNull;
     if (user == null) return;
@@ -245,6 +305,24 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
     final hostStats = hostUser != null
         ? StreamerStats.from(user: hostUser, stream: liveStream)
         : null;
+
+    // Settle our own challenges once the streamer accepts: deduct our coins and
+    // credit the streamer's diamonds (only the wallet owner may spend coins).
+    final myUid = ref.watch(authStateProvider).valueOrNull?.uid;
+    ref.listen(
+      myChallengesProvider((streamId: widget.stream.id, uid: myUid ?? '__none__')),
+      (_, next) {
+        for (final ch in next.valueOrNull ?? const <GameChallenge>[]) {
+          if (ch.status == 'accepted' && _settledChallenges.add(ch.id)) {
+            ref.read(gameChallengeServiceProvider).payAccepted(
+                  streamId: widget.stream.id,
+                  ch: ch,
+                  hostUid: widget.stream.hostUid,
+                ).catchError((_) {});
+          }
+        }
+      },
+    );
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -498,6 +576,13 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
                         icon: const Text('🎁', style: TextStyle(fontSize: 22)),
                         padding: const EdgeInsets.all(8),
                         constraints: const BoxConstraints(),
+                      ),
+                      IconButton(
+                        onPressed: _openChallengeSheet,
+                        icon: const Text('🎮', style: TextStyle(fontSize: 22)),
+                        padding: const EdgeInsets.all(8),
+                        constraints: const BoxConstraints(),
+                        tooltip: 'Dare the streamer to a game',
                       ),
                       IconButton(
                         onPressed: () {},

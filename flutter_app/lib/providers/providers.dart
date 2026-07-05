@@ -12,6 +12,8 @@ import '../services/user_service.dart';
 import '../services/danmaku_service.dart';
 import '../services/gift_catalog_service.dart';
 import '../services/game_service.dart';
+import '../services/game_challenge_service.dart';
+import '../models/game_challenge.dart';
 
 // Services
 final authServiceProvider = Provider((ref) => AuthService());
@@ -21,6 +23,19 @@ final userServiceProvider = Provider((ref) => UserService());
 final danmakuServiceProvider = Provider((ref) => DanmakuService());
 final giftCatalogServiceProvider = Provider((ref) => GiftCatalogService());
 final gameServiceProvider = Provider((ref) => GameService());
+final gameChallengeServiceProvider = Provider((ref) => GameChallengeService());
+
+/// Host: pending viewer challenges for a stream.
+final pendingChallengesProvider =
+    StreamProvider.family<List<GameChallenge>, String>((ref, streamId) {
+  return ref.watch(gameChallengeServiceProvider).watchPending(streamId);
+});
+
+/// Viewer: their own challenges on a stream (to settle once accepted).
+final myChallengesProvider =
+    StreamProvider.family<List<GameChallenge>, ({String streamId, String uid})>((ref, args) {
+  return ref.watch(gameChallengeServiceProvider).watchMine(args.streamId, args.uid);
+});
 
 /// Which bottom-nav tab is currently active. The feed video player watches
 /// this and pauses when the user navigates away from the Home tab so audio

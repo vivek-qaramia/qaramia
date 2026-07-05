@@ -130,6 +130,22 @@ service cloud.firestore {
         allow read: if true;
         allow write: if isAuthed();
       }
+
+      // Viewer game challenges (Game Zone 3c). A viewer creates a 'pending'
+      // dare; the host accepts/declines; the challenger settles it (paid/failed)
+      // on their own client (only the wallet owner may spend their coins). The
+      // coin debit + diamond credit ride the existing wallet/creatorBalance
+      // rules, which already gate those writes.
+      match /gameChallenges/{challengeId} {
+        allow read: if isAuthed();
+        allow create: if isAuthed()
+          && request.resource.data.fromUid == request.auth.uid
+          && request.resource.data.status == 'pending';
+        allow update: if isAuthed() && (
+          request.auth.uid == resource.data.fromUid ||
+          request.auth.uid == get(/databases/$(database)/documents/streams/$(streamId)).data.hostUid
+        );
+      }
     }
 
     // Co-host invites — written by hosts to other users' documents

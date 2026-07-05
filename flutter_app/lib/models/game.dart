@@ -30,6 +30,7 @@ class Game {
   final int rewardPoints; // points awarded on success
   final int successScore; // score needed to pass
   final bool enabled;
+  final int challengeCost; // coins a viewer pays to dare the streamer (Phase 3c)
 
   const Game({
     required this.id,
@@ -43,6 +44,7 @@ class Game {
     required this.rewardPoints,
     required this.successScore,
     this.enabled = true,
+    this.challengeCost = 100,
   });
 
   /// Static v1 catalog. One engine (tapTargets), three difficulty tiers so the
