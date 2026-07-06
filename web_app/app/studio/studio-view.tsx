@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/auth-store';
 import { db, rtdb } from '@/lib/firebase';
-import { collection, addDoc, doc, updateDoc, serverTimestamp, increment } from 'firebase/firestore';
+import { collection, addDoc, doc, getDoc, updateDoc, serverTimestamp, increment } from 'firebase/firestore';
 import { ref as rtdbRef, set as rtdbSet, remove as rtdbRemove } from 'firebase/database';
 import { CaptionEngine, isCaptionSupported } from '@/lib/speech/caption-engine';
 import { useDanmaku, useSingleStream } from '@/hooks/use-live-stream';
@@ -24,8 +24,15 @@ import { matchAd } from '@/hooks/use-ads';
 import { VIDEO_FILTERS } from '@/lib/compositing/video-filters';
 import { FilterCanvas } from '@/lib/compositing/filter-canvas';
 import { ROOM_BACKGROUNDS } from '@/lib/room-backgrounds';
-import AgoraRTC, { ILocalAudioTrack, ICameraVideoTrack, IAgoraRTCRemoteUser } from 'agora-rtc-sdk-ng';
+import AgoraRTC, { ILocalAudioTrack, ICameraVideoTrack, ILocalVideoTrack, IAgoraRTCRemoteUser } from 'agora-rtc-sdk-ng';
 import VirtualBackgroundExtension, { IVirtualBackgroundProcessor } from 'agora-extension-virtual-background';
+import { GAMES, ATTRIBUTE_LABELS, dayKey, type Game, type GameResult } from '@/lib/games';
+import { completeGameTask } from '@/lib/game-progress';
+import { GamePlayer } from '@/components/games/game-player';
+
+// Must match _kScreenShareUid (Flutter) + SCREEN_SHARE_UID (live-view): the
+// in-stream game is published on a 2nd Agora connection under this uid.
+const WEB_SCREEN_SHARE_UID = 424242;
 
 const QUALITY_PRESETS = {
   '480p':   { label: '480p',       width: 854,  height: 480,  frameRate: 30, bitrateMax: 1500, bitrateMin: 300  },
@@ -124,6 +131,16 @@ export default function StudioView() {
 
   const clientRef = useRef<ReturnType<typeof AgoraRTC.createClient> | null>(null);
   const audioTrackRef = useRef<ILocalAudioTrack | null>(null);
+
+  // In-stream game (W4): the game is published on a SECOND Agora client under
+  // WEB_SCREEN_SHARE_UID via a screen-share track; the camera client is
+  // untouched. Viewers render that uid full-screen (3b/W3).
+  const [activeGame, setActiveGame] = useState<Game | null>(null);
+  const [showGamePicker, setShowGamePicker] = useState(false);
+  const [gameResultMsg, setGameResultMsg] = useState<string | null>(null);
+  const screenClientRef = useRef<ReturnType<typeof AgoraRTC.createClient> | null>(null);
+  const screenTrackRef = useRef<ILocalVideoTrack | null>(null);
+  const activeGameRef = useRef<Game | null>(null);
 
   // Clip recording — capture the broadcast via MediaRecorder, then hand the
   // blob to the post-stream editor before publishing to the feed.
@@ -564,8 +581,73 @@ export default function StudioView() {
     setEditorBlob(videoBlob);
   };
 
+  // Start a game live: publish it on a 2nd Agora client via screen-share (the
+  // browser prompts the streamer to pick the tab/window showing the game).
+  const startWebGame = async (game: Game) => {
+    if (!streamId || activeGameRef.current) return;
+    setShowGamePicker(false);
+    let screenTrack: ILocalVideoTrack;
+    try {
+      screenTrack = (await AgoraRTC.createScreenVideoTrack({ optimizationMode: 'detail' }, 'disable')) as ILocalVideoTrack;
+    } catch {
+      return; // streamer cancelled the share picker
+    }
+    screenTrackRef.current = screenTrack;
+    setActiveGame(game);
+    activeGameRef.current = game;
+    try {
+      const sc = AgoraRTC.createClient({ mode: 'live', codec: 'vp8' });
+      screenClientRef.current = sc;
+      await sc.setClientRole('host');
+      await sc.join(AGORA_APP_ID, streamId, null, WEB_SCREEN_SHARE_UID);
+      await sc.publish([screenTrack]);
+      await updateDoc(doc(db, 'streams', streamId), {
+        gameActive: true, gameScreenUid: WEB_SCREEN_SHARE_UID, activeGameName: game.name,
+      });
+      // If the streamer stops sharing via the browser bar, end the game.
+      screenTrack.on('track-ended', () => endWebGame({ score: 0, success: false }));
+    } catch {
+      try { screenTrack.close(); } catch {}
+      screenTrackRef.current = null;
+      screenClientRef.current = null;
+      setActiveGame(null);
+      activeGameRef.current = null;
+    }
+  };
+
+  const endWebGame = async (result: GameResult) => {
+    const game = activeGameRef.current;
+    const st = screenTrackRef.current;
+    const sc = screenClientRef.current;
+    screenTrackRef.current = null;
+    screenClientRef.current = null;
+    activeGameRef.current = null;
+    setActiveGame(null);
+    try { st?.close(); } catch {}
+    try { await sc?.leave(); } catch {}
+    if (streamId) {
+      try {
+        await updateDoc(doc(db, 'streams', streamId), { gameActive: false, gameScreenUid: null, activeGameName: null });
+      } catch {}
+    }
+    if (game && result.success && user) {
+      try {
+        const snap = await getDoc(doc(db, 'users', user.uid));
+        const d = snap.data() ?? {};
+        const done = (d.gameTasksDate as string) === dayKey(new Date()) ? ((d.gameTasksDone as string[]) ?? []) : [];
+        await completeGameTask({ uid: user.uid, game, doneToday: done });
+      } catch {}
+    }
+    if (game) {
+      setGameResultMsg(result.success
+        ? `⚡ Cleared! +${game.rewardPoints} ${ATTRIBUTE_LABELS[game.attribute] ?? game.attribute}`
+        : `Game over — score ${result.score}/${game.successScore}`);
+    }
+  };
+
   const endStream = async () => {
     if (!streamId || !user) return;
+    if (activeGameRef.current) await endWebGame({ score: 0, success: false });
     if (recording) stopClipRecording();
     audioTrackRef.current?.stop(); audioTrackRef.current?.close();
     filterCanvasRef.current?.stop(); filterCanvasRef.current = null;
@@ -731,6 +813,14 @@ export default function StudioView() {
                 )}
               </button>
               {clipMsg && <p className="text-xs text-center text-white/60">{clipMsg}</p>}
+              <button
+                onClick={() => setShowGamePicker(true)}
+                disabled={!!activeGame}
+                className="w-full py-3 rounded-xl font-bold transition flex items-center justify-center gap-2 disabled:opacity-50"
+                style={{ backgroundColor: 'rgba(91,225,255,0.15)', color: '#5BE1FF', border: '1px solid rgba(91,225,255,0.5)' }}
+              >
+                🎮 Play a game live
+              </button>
               <button onClick={endStream} className="w-full py-4 bg-red-600 hover:bg-red-700 rounded-xl font-bold text-lg transition">
                 End Stream
               </button>
@@ -891,6 +981,44 @@ export default function StudioView() {
             setClipMsg(published ? 'Clip published to your feed 🎉' : null);
           }}
         />
+      )}
+
+      {/* Game picker — choose a game to play live (screen-shared to viewers). */}
+      {showGamePicker && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70" onClick={() => setShowGamePicker(false)}>
+          <div className="rounded-2xl p-5 w-80 max-w-[90%]" style={{ backgroundColor: '#0A1430', border: '1px solid rgba(91,225,255,0.5)' }} onClick={(e) => e.stopPropagation()}>
+            <p className="font-extrabold mb-1" style={{ color: '#CFE8FF' }}>🎮 Play a game live</p>
+            <p className="text-[11px] text-[#6E86B0] mb-3">You&apos;ll pick the tab/window to share; viewers watch the game.</p>
+            <div className="space-y-1.5 max-h-72 overflow-y-auto">
+              {GAMES.map((g) => (
+                <button key={g.id} onClick={() => startWebGame(g)} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left hover:bg-white/10 transition">
+                  <span className="text-2xl">{g.emoji}</span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-semibold" style={{ color: '#CFE8FF' }}>{g.name}</span>
+                    <span className="block text-[11px] text-[#6E86B0]">{g.difficulty} · ⏱ {g.timeLimitSec}s · +{g.rewardPoints} {ATTRIBUTE_LABELS[g.attribute] ?? g.attribute}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Full-screen game overlay — the streamer plays here; screen-share captures it. */}
+      {activeGame && (
+        <div className="fixed inset-0 z-[80]" style={{ backgroundColor: '#0A1430' }}>
+          <GamePlayer game={activeGame} onFinish={(r) => endWebGame(r)} />
+        </div>
+      )}
+
+      {/* Result dialog */}
+      {gameResultMsg && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60" onClick={() => setGameResultMsg(null)}>
+          <div className="rounded-2xl p-6 max-w-xs text-center" style={{ backgroundColor: '#0A1430', border: '1px solid rgba(91,225,255,0.55)', color: '#CFE8FF' }}>
+            <p className="mb-4">{gameResultMsg}</p>
+            <button onClick={() => setGameResultMsg(null)} className="px-6 py-2 rounded-full font-bold" style={{ backgroundColor: '#5BE1FF', color: '#0A1430' }}>OK</button>
+          </div>
+        </div>
       )}
     </div>
   );
