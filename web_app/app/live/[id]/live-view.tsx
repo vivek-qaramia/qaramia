@@ -10,6 +10,9 @@ import { useAuthStore } from '@/store/auth-store';
 import { AppUser, GiftType, Sponsorship, sponsorshipApplies, viewerCoinCost } from '@/lib/types';
 import { streamerStats } from '@/lib/streamer-stats';
 import { SystemStatusCard } from '@/components/system-status-card';
+import { CHALLENGE_GAMES } from '@/lib/games';
+import { sendChallenge, payAcceptedChallenge, challengeFromDoc } from '@/lib/game-challenges';
+import { query, where, onSnapshot } from 'firebase/firestore';
 import { useGiftCatalog } from '@/hooks/use-gift-catalog';
 import { useActiveSponsorships } from '@/hooks/use-sponsorships';
 import { useWallet } from '@/hooks/use-wallet';
@@ -41,6 +44,8 @@ export default function LiveView({ streamId }: { streamId: string }) {
   const [captionsOn, setCaptionsOn] = useState(true);
   const [hostUser, setHostUser] = useState<AppUser | null>(null);
   const [showStatus, setShowStatus] = useState(false);
+  const [showChallenge, setShowChallenge] = useState(false);
+  const settledChallenges = useRef<Set<string>>(new Set());
   const { wallet } = useWallet(user?.uid);
   const giftCatalog = useGiftCatalog();
   const sponsorships = useActiveSponsorships();
@@ -66,6 +71,24 @@ export default function LiveView({ streamId }: { streamId: string }) {
       })
       .catch(() => {});
   }, [stream?.hostUid]);
+
+  // Settle our own challenges once the streamer accepts: deduct our coins and
+  // credit the streamer's diamonds (only the wallet owner may spend coins).
+  useEffect(() => {
+    const uid = user?.uid;
+    const hostUid = stream?.hostUid;
+    if (!uid || !hostUid) return;
+    const q = query(collection(db, 'streams', streamId, 'gameChallenges'), where('fromUid', '==', uid));
+    return onSnapshot(q, (snap) => {
+      snap.docs.forEach((d) => {
+        const ch = challengeFromDoc(d.id, d.data());
+        if (ch.status === 'accepted' && !settledChallenges.current.has(ch.id)) {
+          settledChallenges.current.add(ch.id);
+          payAcceptedChallenge({ streamId, challenge: ch, hostUid }).catch(() => {});
+        }
+      });
+    });
+  }, [user?.uid, stream?.hostUid, streamId]);
 
   const clientRef = useRef<ReturnType<typeof AgoraRTC.createClient> | null>(null);
   // Two slots so the viewer can render a 50/50 split when the host AND a
@@ -457,6 +480,40 @@ export default function LiveView({ streamId }: { streamId: string }) {
           </div>
         )}
 
+        {showChallenge && (
+          <div className="border-t border-white/10 p-3 bg-zinc-900">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-white/40 font-semibold uppercase tracking-wider">Dare the streamer to a game</p>
+              <span className="text-xs text-white/60">🪙 {wallet.coins.toLocaleString()}</span>
+            </div>
+            <p className="text-[11px] text-white/40 mb-2">They earn diamonds if they accept and play.</p>
+            <div className="space-y-1.5 max-h-56 overflow-y-auto">
+              {CHALLENGE_GAMES.map((g) => {
+                const afford = wallet.coins >= g.challengeCost;
+                return (
+                  <button
+                    key={g.id}
+                    disabled={!user || !afford}
+                    onClick={async () => {
+                      if (!user || !stream) return;
+                      setShowChallenge(false);
+                      await sendChallenge({ streamId, fromUid: user.uid, fromUsername: user.username, game: g });
+                    }}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition ${afford ? 'hover:bg-white/10' : 'opacity-40'}`}
+                  >
+                    <span className="text-2xl">{g.emoji}</span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-sm font-semibold text-white truncate">{g.name}</span>
+                      <span className="block text-[11px] text-white/40">{g.difficulty} · ⏱ {g.timeLimitSec}s</span>
+                    </span>
+                    <span className="text-yellow-400 font-bold text-sm">🪙 {g.challengeCost}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {insufficientCoins !== null && (
           <div className="border-t border-white/10 p-3 bg-amber-500/10 flex items-center gap-3">
             <p className="text-xs text-amber-400 flex-1">
@@ -477,6 +534,7 @@ export default function LiveView({ streamId }: { streamId: string }) {
               className="flex-1 bg-zinc-800 border border-zinc-600 rounded-full px-4 py-2 text-sm text-white placeholder-zinc-400 focus:outline-none focus:border-[#FF7043] transition"
             />
             <button onClick={() => setShowGifts(!showGifts)} className="text-xl hover:scale-110 transition">🎁</button>
+            <button onClick={() => setShowChallenge(true)} title="Dare the streamer to a game" className="text-xl hover:scale-110 transition">🎮</button>
             <button onClick={sendChat} className="px-3 py-2 bg-[#FF7043] rounded-full text-sm font-semibold hover:bg-[#e55a2b] transition">Send</button>
           </div>
         ) : (
