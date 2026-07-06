@@ -118,6 +118,38 @@ class Game {
     }
     return null;
   }
+
+  factory Game.fromJson(String id, Map<String, dynamic> j) => Game(
+        id: id,
+        name: j['name'] as String? ?? id,
+        type: GameType.values.firstWhere(
+          (t) => t.name == j['type'],
+          orElse: () => GameType.tapTargets,
+        ),
+        emoji: j['emoji'] as String? ?? '🎮',
+        description: j['description'] as String? ?? '',
+        timeLimitSec: (j['timeLimitSec'] as num?)?.toInt() ?? 30,
+        difficulty: j['difficulty'] as String? ?? 'Medium',
+        attribute: j['attribute'] as String? ?? 'pwr',
+        rewardPoints: (j['rewardPoints'] as num?)?.toInt() ?? 10,
+        successScore: (j['successScore'] as num?)?.toInt() ?? 10,
+        enabled: j['enabled'] as bool? ?? true,
+        challengeCost: (j['challengeCost'] as num?)?.toInt() ?? 100,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'type': type.name,
+        'emoji': emoji,
+        'description': description,
+        'timeLimitSec': timeLimitSec,
+        'difficulty': difficulty,
+        'attribute': attribute,
+        'rewardPoints': rewardPoints,
+        'successScore': successScore,
+        'enabled': enabled,
+        'challengeCost': challengeCost,
+      };
 }
 
 /// Outcome of one play-through.

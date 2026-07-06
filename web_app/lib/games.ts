@@ -15,6 +15,7 @@ export interface Game {
   rewardPoints: number;
   successScore: number;
   challengeCost: number; // coins a viewer pays to dare the streamer
+  enabled?: boolean; // false hides it (default true); toggled via 3d admin UI
 }
 
 export interface GameResult {
@@ -49,8 +50,8 @@ export function dayKey(d: Date): string {
 
 // Deterministic daily task set: same games for everyone on a given date,
 // rotating day to day (own web ordering — need not match the Flutter pick).
-export function gamesForDay(d: Date, count = 3): Game[] {
-  const enabled = [...GAMES];
+export function gamesForDay(games: Game[], d: Date, count = 3): Game[] {
+  const enabled = games.filter((g) => g.enabled !== false);
   if (enabled.length <= count) return enabled;
   const seed = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
   const hash = (s: string) => {

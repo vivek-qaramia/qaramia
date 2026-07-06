@@ -88,12 +88,13 @@ class _GameZoneScreenState extends ConsumerState<GameZoneScreen> {
           if (user == null) {
             return const Center(child: Text('Sign in to play.', style: TextStyle(color: _inkMute)));
           }
-          final games = Game.catalog.where((g) => g.enabled).toList();
+          final catalog = ref.watch(gamesCatalogProvider);
+          final games = catalog.where((g) => g.enabled).toList();
           // Today's rotating daily picks — surfaced as a badge; all games stay
           // playable so newly-added engines aren't hidden by the rotation.
           final dailyIds = ref
               .read(gameServiceProvider)
-              .tasksForDay(DateTime.now())
+              .tasksForDay(catalog, DateTime.now())
               .map((g) => g.id)
               .toSet();
           final doneToday = user.gameTasksDate == today ? user.gameTasksDone : const <String>[];

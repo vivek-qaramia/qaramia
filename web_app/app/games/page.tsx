@@ -3,8 +3,9 @@ import { useEffect, useRef, useState } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuthStore } from '@/store/auth-store';
-import { GAMES, gamesForDay, dayKey, ATTRIBUTE_LABELS, type Game, type GameResult } from '@/lib/games';
+import { gamesForDay, dayKey, ATTRIBUTE_LABELS, type Game, type GameResult } from '@/lib/games';
 import { completeGameTask } from '@/lib/game-progress';
+import { useGamesCatalog } from '@/hooks/use-games-catalog';
 import { GamePlayer } from '@/components/games/game-player';
 
 interface Progress {
@@ -15,6 +16,7 @@ interface Progress {
 
 export default function GamesPage() {
   const { user } = useAuthStore();
+  const catalog = useGamesCatalog();
   const [progress, setProgress] = useState<Progress>({ attributes: {}, gameTasksDone: [] });
   const progressRef = useRef(progress);
   progressRef.current = progress;
@@ -38,7 +40,8 @@ export default function GamesPage() {
   }
 
   const today = dayKey(new Date());
-  const dailyIds = new Set(gamesForDay(new Date()).map((g) => g.id));
+  const games = catalog.filter((g) => g.enabled !== false);
+  const dailyIds = new Set(gamesForDay(catalog, new Date()).map((g) => g.id));
   const doneToday = progress.gameTasksDate === today ? progress.gameTasksDone : [];
   const earned = Object.entries(progress.attributes).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
 
@@ -78,7 +81,7 @@ export default function GamesPage() {
 
       <p className="text-[12px] font-extrabold tracking-[1.5px] text-[#6E86B0] mb-3">GAMES</p>
       <div className="space-y-3">
-        {GAMES.map((g) => {
+        {games.map((g) => {
           const done = doneToday.includes(g.id);
           return (
             <div key={g.id} className="flex items-center gap-3 rounded-2xl p-3.5"

@@ -26,7 +26,9 @@ import { FilterCanvas } from '@/lib/compositing/filter-canvas';
 import { ROOM_BACKGROUNDS } from '@/lib/room-backgrounds';
 import AgoraRTC, { ILocalAudioTrack, ICameraVideoTrack, ILocalVideoTrack, IAgoraRTCRemoteUser } from 'agora-rtc-sdk-ng';
 import VirtualBackgroundExtension, { IVirtualBackgroundProcessor } from 'agora-extension-virtual-background';
-import { GAMES, ATTRIBUTE_LABELS, dayKey, type Game, type GameResult } from '@/lib/games';
+import { ATTRIBUTE_LABELS, dayKey, type Game, type GameResult } from '@/lib/games';
+import { useGamesCatalog } from '@/hooks/use-games-catalog';
+import { useIsAdmin } from '@/hooks/use-is-admin';
 import { completeGameTask } from '@/lib/game-progress';
 import { GamePlayer } from '@/components/games/game-player';
 
@@ -63,6 +65,8 @@ async function loadRoomImage(url: string): Promise<HTMLImageElement> {
 
 export default function StudioView() {
   const { user } = useAuthStore();
+  const gamesCatalog = useGamesCatalog();
+  const isAdmin = useIsAdmin();
   const router = useRouter();
   const [isLive, setIsLive] = useState(false);
   const [streamId, setStreamId] = useState<string | null>(null);
@@ -676,9 +680,16 @@ export default function StudioView() {
     <div className="max-w-7xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Creator Studio</h1>
-        <Link href="/studio/ads" className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-sm text-white/70 hover:text-white rounded-lg transition">
-          📢 Manage Ads
-        </Link>
+        <div className="flex gap-2">
+          {isAdmin && (
+            <Link href="/studio/games" className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-sm text-white/70 hover:text-white rounded-lg transition">
+              🎮 Game Catalog
+            </Link>
+          )}
+          <Link href="/studio/ads" className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-sm text-white/70 hover:text-white rounded-lg transition">
+            📢 Manage Ads
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -990,7 +1001,7 @@ export default function StudioView() {
             <p className="font-extrabold mb-1" style={{ color: '#CFE8FF' }}>🎮 Play a game live</p>
             <p className="text-[11px] text-[#6E86B0] mb-3">You&apos;ll pick the tab/window to share; viewers watch the game.</p>
             <div className="space-y-1.5 max-h-72 overflow-y-auto">
-              {GAMES.map((g) => (
+              {gamesCatalog.filter((g) => g.enabled !== false).map((g) => (
                 <button key={g.id} onClick={() => startWebGame(g)} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left hover:bg-white/10 transition">
                   <span className="text-2xl">{g.emoji}</span>
                   <span className="flex-1 min-w-0">

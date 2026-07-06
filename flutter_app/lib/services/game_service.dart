@@ -23,8 +23,8 @@ class GameService {
   /// Deterministic daily task set: the same [count] games for everyone on a
   /// given date, rotating day to day. With a small catalog this just returns
   /// all enabled games.
-  List<Game> tasksForDay(DateTime day, {int count = 3}) {
-    final enabled = Game.catalog.where((g) => g.enabled).toList();
+  List<Game> tasksForDay(List<Game> catalog, DateTime day, {int count = 3}) {
+    final enabled = catalog.where((g) => g.enabled).toList();
     if (enabled.length <= count) return enabled;
     final seed = day.year * 10000 + day.month * 100 + day.day;
     final shuffled = [...enabled]..shuffle(Random(seed));

@@ -10,7 +10,7 @@ import { useAuthStore } from '@/store/auth-store';
 import { AppUser, GiftType, Sponsorship, sponsorshipApplies, viewerCoinCost } from '@/lib/types';
 import { streamerStats } from '@/lib/streamer-stats';
 import { SystemStatusCard } from '@/components/system-status-card';
-import { CHALLENGE_GAMES } from '@/lib/games';
+import { useGamesCatalog } from '@/hooks/use-games-catalog';
 import { sendChallenge, payAcceptedChallenge, challengeFromDoc } from '@/lib/game-challenges';
 import { query, where, onSnapshot } from 'firebase/firestore';
 import { useGiftCatalog } from '@/hooks/use-gift-catalog';
@@ -35,6 +35,7 @@ export default function LiveView({ streamId }: { streamId: string }) {
   const stream = useSingleStream(streamId);
   const messages = useDanmaku(streamId);
   const cohosts = useCohosts(streamId);
+  const gamesCatalog = useGamesCatalog();
   const { user } = useAuthStore();
 
   const [chatInput, setChatInput] = useState('');
@@ -488,7 +489,7 @@ export default function LiveView({ streamId }: { streamId: string }) {
             </div>
             <p className="text-[11px] text-white/40 mb-2">They earn diamonds if they accept and play.</p>
             <div className="space-y-1.5 max-h-56 overflow-y-auto">
-              {CHALLENGE_GAMES.map((g) => {
+              {gamesCatalog.filter((g) => g.enabled !== false).map((g) => {
                 const afford = wallet.coins >= g.challengeCost;
                 return (
                   <button

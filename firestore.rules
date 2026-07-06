@@ -102,6 +102,22 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Game catalog (Game Zone 3d) — public read; only admins may author. Games
+    // layer over / replace the in-app static catalog, so entries can be
+    // added/tuned without an app release. Admin = an admins/{uid} doc.
+    match /games/{gameId} {
+      allow read: if true;
+      allow write: if isAuthed()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // Admin allowlist — bootstrapped by hand in the Firebase Console. A user
+    // may read their own row (to reveal the authoring UI); no client writes.
+    match /admins/{uid} {
+      allow read: if isOwner(uid);
+      allow write: if false;
+    }
+
     // Live streams — public read so discovery page works without signing in
     match /streams/{streamId} {
       allow read: if true;

@@ -6,7 +6,6 @@ import '../../models/chat_message.dart';
 import '../../models/gift.dart';
 import '../../models/sponsorship.dart';
 import '../../models/streamer_stats.dart';
-import '../../models/game.dart';
 import '../../models/game_challenge.dart';
 import '../../providers/providers.dart';
 import '../../providers/cart_provider.dart';
@@ -170,7 +169,7 @@ class _LiveViewerScreenState extends ConsumerState<LiveViewerScreen> {
     final user = ref.read(authStateProvider).valueOrNull;
     if (user == null) return;
     final currentUser = ref.read(currentUserProvider).valueOrNull;
-    final games = Game.catalog.where((g) => g.enabled).toList();
+    final games = ref.read(gamesCatalogProvider).where((g) => g.enabled).toList();
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: const Color(0xFF0A1430),

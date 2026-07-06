@@ -841,7 +841,7 @@ class _BroadcastViewState extends ConsumerState<_BroadcastView> {
 
   /// Bottom sheet of today's Game Zone tasks; tapping one starts it live.
   void _openGamePicker() {
-    final tasks = Game.catalog.where((g) => g.enabled).toList();
+    final tasks = ref.read(gamesCatalogProvider).where((g) => g.enabled).toList();
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: const Color(0xFF0A1430),
@@ -985,7 +985,8 @@ class _BroadcastViewState extends ConsumerState<_BroadcastView> {
   /// Host accepts a viewer's challenge: mark accepted (the viewer's client then
   /// settles coins → diamonds) and launch the game live.
   Future<void> _acceptChallenge(GameChallenge ch) async {
-    final game = Game.byId(ch.gameId);
+    final matches = ref.read(gamesCatalogProvider).where((g) => g.id == ch.gameId);
+    final game = matches.isNotEmpty ? matches.first : Game.byId(ch.gameId);
     try {
       await ref.read(gameChallengeServiceProvider).accept(stream.id, ch.id);
     } catch (e) {

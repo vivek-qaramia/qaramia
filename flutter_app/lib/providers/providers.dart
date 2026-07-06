@@ -13,7 +13,9 @@ import '../services/danmaku_service.dart';
 import '../services/gift_catalog_service.dart';
 import '../services/game_service.dart';
 import '../services/game_challenge_service.dart';
+import '../services/game_catalog_service.dart';
 import '../models/game_challenge.dart';
+import '../models/game.dart';
 
 // Services
 final authServiceProvider = Provider((ref) => AuthService());
@@ -24,6 +26,18 @@ final danmakuServiceProvider = Provider((ref) => DanmakuService());
 final giftCatalogServiceProvider = Provider((ref) => GiftCatalogService());
 final gameServiceProvider = Provider((ref) => GameService());
 final gameChallengeServiceProvider = Provider((ref) => GameChallengeService());
+final gameCatalogServiceProvider = Provider((ref) => GameCatalogService());
+
+final _remoteGamesProvider =
+    StreamProvider<List<Game>>((ref) => ref.watch(gameCatalogServiceProvider).watchCatalog());
+
+/// The live game catalog — Firestore-authored games when present (3d), else the
+/// in-code [Game.catalog] fallback. Used everywhere games are listed/played.
+final gamesCatalogProvider = Provider<List<Game>>((ref) {
+  final remote = ref.watch(_remoteGamesProvider).valueOrNull;
+  if (remote == null || remote.isEmpty) return Game.catalog;
+  return remote;
+});
 
 /// Host: pending viewer challenges for a stream.
 final pendingChallengesProvider =
