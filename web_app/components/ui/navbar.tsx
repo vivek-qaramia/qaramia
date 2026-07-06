@@ -46,6 +46,9 @@ export function Navbar() {
           <Link href="/studio" className="text-sm text-white/70 hover:text-white transition">Studio</Link>
         )}
         {user && (
+          <Link href="/games" className="text-sm text-white/70 hover:text-white transition">Games</Link>
+        )}
+        {user && (
           <Link href="/studio/ads" className="text-sm text-white/70 hover:text-white transition">Ads</Link>
         )}
       </nav>
