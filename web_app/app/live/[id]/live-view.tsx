@@ -4,10 +4,12 @@ import Link from 'next/link';
 import { useSingleStream, useDanmaku } from '@/hooks/use-live-stream';
 import { useCohosts, usePendingCoHostInvite, acceptCoHostInvite, setCoHostActive, declineCoHostInvite } from '@/hooks/use-cohosts';
 import { db, rtdb } from '@/lib/firebase';
-import { doc, updateDoc, increment, collection, runTransaction, serverTimestamp, setDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, increment, collection, runTransaction, serverTimestamp, setDoc } from 'firebase/firestore';
 import { ref as rtdbRef, push } from 'firebase/database';
 import { useAuthStore } from '@/store/auth-store';
-import { GiftType, Sponsorship, sponsorshipApplies, viewerCoinCost } from '@/lib/types';
+import { AppUser, GiftType, Sponsorship, sponsorshipApplies, viewerCoinCost } from '@/lib/types';
+import { streamerStats } from '@/lib/streamer-stats';
+import { SystemStatusCard } from '@/components/system-status-card';
 import { useGiftCatalog } from '@/hooks/use-gift-catalog';
 import { useActiveSponsorships } from '@/hooks/use-sponsorships';
 import { useWallet } from '@/hooks/use-wallet';
@@ -37,6 +39,8 @@ export default function LiveView({ streamId }: { streamId: string }) {
   const [isCoHost, setIsCoHost] = useState(false);
   const [insufficientCoins, setInsufficientCoins] = useState<number | null>(null);
   const [captionsOn, setCaptionsOn] = useState(true);
+  const [hostUser, setHostUser] = useState<AppUser | null>(null);
+  const [showStatus, setShowStatus] = useState(false);
   const { wallet } = useWallet(user?.uid);
   const giftCatalog = useGiftCatalog();
   const sponsorships = useActiveSponsorships();
@@ -49,6 +53,19 @@ export default function LiveView({ streamId }: { streamId: string }) {
   useEffect(() => {
     if (typeof window !== 'undefined') localStorage.setItem('qaramia-captions', captionsOn ? '1' : '0');
   }, [captionsOn]);
+
+  // Host profile — powers the System status panel (level + stats) for viewers.
+  useEffect(() => {
+    const hostUid = stream?.hostUid;
+    if (!hostUid) return;
+    getDoc(doc(db, 'users', hostUid))
+      .then((snap) => {
+        if (snap.exists()) {
+          setHostUser({ ...snap.data(), uid: snap.id, createdAt: snap.data().createdAt?.toDate() } as AppUser);
+        }
+      })
+      .catch(() => {});
+  }, [stream?.hostUid]);
 
   const clientRef = useRef<ReturnType<typeof AgoraRTC.createClient> | null>(null);
   // Two slots so the viewer can render a 50/50 split when the host AND a
@@ -357,10 +374,26 @@ export default function LiveView({ streamId }: { streamId: string }) {
           <span className="px-3 py-1 bg-black/60 backdrop-blur text-yellow-400 text-sm rounded-full">
             🎁 {stream.totalGifts.toLocaleString()}
           </span>
+          {hostUser && (
+            <button
+              onClick={() => setShowStatus((v) => !v)}
+              className="px-3 py-1 rounded-full text-sm font-bold font-mono"
+              style={{ backgroundColor: 'rgba(10,20,48,0.9)', color: '#5BE1FF', border: '1px solid rgba(91,225,255,0.7)' }}
+            >
+              ⚡ Lv.{streamerStats(hostUser, stream).level}
+            </button>
+          )}
           {stream.roomMode && (
             <span className="px-3 py-1 bg-purple-600/80 text-white text-sm rounded-full">🏠 Room</span>
           )}
         </div>
+
+        {/* System status panel — the host's level + stats, toggled by the Lv badge. */}
+        {showStatus && hostUser && (
+          <div className="absolute top-16 left-4 z-30 w-72 max-w-[80%]">
+            <SystemStatusCard stats={streamerStats(hostUser, stream)} name={hostUser.username} />
+          </div>
+        )}
 
         {/* Gift goal + top-gifter leaderboard, under the status badges */}
         <div className="absolute top-16 left-4 z-10 space-y-2">

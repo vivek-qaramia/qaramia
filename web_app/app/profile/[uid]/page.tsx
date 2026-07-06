@@ -5,6 +5,8 @@ import { db } from '@/lib/firebase';
 import { AppUser, Video } from '@/lib/types';
 import { useAuthStore } from '@/store/auth-store';
 import { formatDistanceToNow } from 'date-fns';
+import { streamerStats } from '@/lib/streamer-stats';
+import { SystemStatusCard } from '@/components/system-status-card';
 
 export default function ProfilePage({ params }: { params: Promise<{ uid: string }> }) {
   const { uid } = use(params);
@@ -91,6 +93,11 @@ export default function ProfilePage({ params }: { params: Promise<{ uid: string 
           <div className="text-center"><p className="font-bold text-lg">{fmt(profile.followingCount)}</p><p className="text-white/40 text-xs">Following</p></div>
           <div className="text-center"><p className="font-bold text-lg">{fmt(profile.followerCount)}</p><p className="text-white/40 text-xs">Followers</p></div>
           <div className="text-center"><p className="font-bold text-lg">{fmt(profile.likeCount)}</p><p className="text-white/40 text-xs">Likes</p></div>
+        </div>
+
+        {/* LitRPG System status card — level + derived stats (parity with mobile). */}
+        <div className="mt-6 w-full max-w-sm">
+          <SystemStatusCard stats={streamerStats(profile)} name={profile.username} />
         </div>
 
         {!isSelf && currentUser && (

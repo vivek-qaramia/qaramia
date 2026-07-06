@@ -16,6 +16,8 @@ export interface AppUser {
   ageRange?: '18-24' | '25-34' | '35-44' | '45+';
   country?: string;
   estimatedEarningsUsd?: number;
+  // Game Zone — earned attribute points (code → points); feed the System panel.
+  attributes?: Record<string, number>;
 }
 
 export interface LiveStream {
