@@ -151,8 +151,16 @@ export default function StudioView() {
   const [recording, setRecording] = useState(false);
   const [clipMsg, setClipMsg] = useState<string | null>(null);
   const [editorBlob, setEditorBlob] = useState<Blob | null>(null);
+  const [editorCaption, setEditorCaption] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
+
+  // Game-highlight clip (3e): while a game is live we record the screen-share
+  // (game) track + mic to its own MediaRecorder, then offer to save it as a
+  // clip through the same PostStreamEditor → publishClip → feed path.
+  const [gameClip, setGameClip] = useState<{ blob: Blob; caption: string } | null>(null);
+  const gameRecorderRef = useRef<MediaRecorder | null>(null);
+  const gameChunksRef = useRef<Blob[]>([]);
 
   const stream = useSingleStream(streamId);
   const messages = useDanmaku(streamId ?? '');
@@ -585,6 +593,52 @@ export default function StudioView() {
     setEditorBlob(videoBlob);
   };
 
+  // ── Game-highlight recording (3e) ───────────────────────────────────────
+  // Record the game screen-share track (+ mic commentary) to its own recorder
+  // for the duration of the game. Best-effort: if it can't start, the game
+  // still plays.
+  const startGameHighlight = (screenTrack: ILocalVideoTrack) => {
+    try {
+      const micTrack = audioTrackRef.current?.getMediaStreamTrack();
+      const stream = new MediaStream([
+        screenTrack.getMediaStreamTrack(),
+        ...(micTrack ? [micTrack] : []),
+      ]);
+      const mime = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
+        .find((m) => MediaRecorder.isTypeSupported(m)) ?? 'video/webm';
+      const rec = new MediaRecorder(stream, {
+        mimeType: mime,
+        videoBitsPerSecond: 2_500_000,
+        audioBitsPerSecond: 128_000,
+      });
+      gameChunksRef.current = [];
+      rec.ondataavailable = (e) => { if (e.data.size > 0) gameChunksRef.current.push(e.data); };
+      rec.start(1000);
+      gameRecorderRef.current = rec;
+    } catch (e) {
+      console.error('startGameHighlight failed', e);
+      gameRecorderRef.current = null;
+    }
+  };
+
+  // Stop the highlight recorder and, if we captured anything, stash the blob so
+  // the streamer can save it. Called from endWebGame BEFORE the screen track is
+  // closed so the recorder can flush its final chunk.
+  const stopGameHighlight = (game: Game, result: GameResult) => {
+    const rec = gameRecorderRef.current;
+    gameRecorderRef.current = null;
+    if (!rec) return;
+    rec.onstop = () => {
+      const chunks = gameChunksRef.current;
+      gameChunksRef.current = [];
+      if (chunks.length === 0) return;
+      const blob = new Blob(chunks, { type: rec.mimeType || 'video/webm' });
+      const verb = result.success ? 'cleared' : 'played';
+      setGameClip({ blob, caption: `🎮 ${game.name} — ${verb} live` });
+    };
+    try { rec.stop(); } catch { /* already stopped */ }
+  };
+
   // Start a game live: publish it on a 2nd Agora client via screen-share (the
   // browser prompts the streamer to pick the tab/window showing the game).
   const startWebGame = async (game: Game) => {
@@ -608,6 +662,7 @@ export default function StudioView() {
       await updateDoc(doc(db, 'streams', streamId), {
         gameActive: true, gameScreenUid: WEB_SCREEN_SHARE_UID, activeGameName: game.name,
       });
+      startGameHighlight(screenTrack);
       // If the streamer stops sharing via the browser bar, end the game.
       screenTrack.on('track-ended', () => endWebGame({ score: 0, success: false }));
     } catch {
@@ -627,6 +682,8 @@ export default function StudioView() {
     screenClientRef.current = null;
     activeGameRef.current = null;
     setActiveGame(null);
+    // Flush the highlight recorder before we tear the screen track down.
+    if (game) stopGameHighlight(game, result);
     try { st?.close(); } catch {}
     try { await sc?.leave(); } catch {}
     if (streamId) {
@@ -986,9 +1043,10 @@ export default function StudioView() {
         <PostStreamEditor
           blob={editorBlob}
           author={{ uid: user.uid, username: user.username, avatarUrl: user.avatarUrl }}
-          defaultCaption={title.trim() || 'Live clip'}
+          defaultCaption={editorCaption ?? (title.trim() || 'Live clip')}
           onClose={(published) => {
             setEditorBlob(null);
+            setEditorCaption(null);
             setClipMsg(published ? 'Clip published to your feed 🎉' : null);
           }}
         />
@@ -1024,10 +1082,23 @@ export default function StudioView() {
 
       {/* Result dialog */}
       {gameResultMsg && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60" onClick={() => setGameResultMsg(null)}>
-          <div className="rounded-2xl p-6 max-w-xs text-center" style={{ backgroundColor: '#0A1430', border: '1px solid rgba(91,225,255,0.55)', color: '#CFE8FF' }}>
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60" onClick={() => { setGameResultMsg(null); setGameClip(null); }}>
+          <div className="rounded-2xl p-6 max-w-xs text-center" style={{ backgroundColor: '#0A1430', border: '1px solid rgba(91,225,255,0.55)', color: '#CFE8FF' }} onClick={(e) => e.stopPropagation()}>
             <p className="mb-4">{gameResultMsg}</p>
-            <button onClick={() => setGameResultMsg(null)} className="px-6 py-2 rounded-full font-bold" style={{ backgroundColor: '#5BE1FF', color: '#0A1430' }}>OK</button>
+            <div className="flex flex-col gap-2">
+              {gameClip && (
+                <button
+                  onClick={() => { setEditorBlob(gameClip.blob); setEditorCaption(gameClip.caption); setGameClip(null); setGameResultMsg(null); }}
+                  className="px-6 py-2 rounded-full font-bold" style={{ backgroundColor: '#5BE1FF', color: '#0A1430' }}
+                >
+                  🎬 Save highlight
+                </button>
+              )}
+              <button onClick={() => { setGameResultMsg(null); setGameClip(null); }} className="px-6 py-2 rounded-full font-bold"
+                style={gameClip ? { border: '1px solid rgba(91,225,255,0.4)', color: '#CFE8FF' } : { backgroundColor: '#5BE1FF', color: '#0A1430' }}>
+                {gameClip ? 'Discard' : 'OK'}
+              </button>
+            </div>
           </div>
         </div>
       )}
