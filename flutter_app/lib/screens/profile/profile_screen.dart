@@ -9,6 +9,7 @@ import '../../theme/brand.dart';
 import '../../widgets/system_panel.dart';
 import '../feed/feed_screen.dart' show VideoCard;
 import '../game_zone/game_zone_screen.dart';
+import '../leaderboard/leaderboard_screen.dart';
 import '../studio/ads_screen.dart';
 import '../../widgets/wallet_badge.dart';
 
@@ -185,6 +186,19 @@ class _ProfileHeader extends ConsumerWidget {
             name: user.username,
           ),
           const SizedBox(height: 12),
+
+          // System leaderboard entry — visible on any profile.
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const LeaderboardScreen()),
+              ),
+              icon: const Text('🏆', style: TextStyle(fontSize: 16)),
+              label: const Text('Leaderboard'),
+            ),
+          ),
+          const SizedBox(height: 8),
 
           // Game Zone entry (own profile only) — play daily tasks to earn
           // attribute points that feed the status card above.

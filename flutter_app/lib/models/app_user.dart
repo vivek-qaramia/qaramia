@@ -25,6 +25,8 @@ class AppUser {
   final Map<String, int> attributes;
   final String? gameTasksDate; // 'yyyy-mm-dd' the done-list applies to
   final List<String> gameTasksDone; // gameIds completed on gameTasksDate
+  // Denormalized System XP (updateSystemXp Cloud Function); leaderboard sort key.
+  final int systemXp;
 
   const AppUser({
     required this.uid,
@@ -45,6 +47,7 @@ class AppUser {
     this.attributes = const {},
     this.gameTasksDate,
     this.gameTasksDone = const [],
+    this.systemXp = 0,
   });
 
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
@@ -68,6 +71,7 @@ class AppUser {
             const {},
         gameTasksDate: json['gameTasksDate'] as String?,
         gameTasksDone: (json['gameTasksDone'] as List?)?.map((e) => e as String).toList() ?? const [],
+        systemXp: (json['systemXp'] as num?)?.toInt() ?? 0,
       );
 
   Map<String, dynamic> toJson() => {

@@ -89,6 +89,11 @@ final userByUidProvider =
   return ref.watch(userServiceProvider).watchUser(uid);
 });
 
+/// All-time System-level leaderboard — top streamers by denormalized systemXp.
+final leaderboardProvider = StreamProvider<List<AppUser>>((ref) {
+  return ref.watch(userServiceProvider).watchLeaderboard();
+});
+
 // Live streams
 final liveStreamsProvider = StreamProvider<List<LiveStream>>((ref) {
   return ref.watch(streamServiceProvider).watchLiveStreams();

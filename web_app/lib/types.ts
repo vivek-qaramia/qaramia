@@ -18,6 +18,8 @@ export interface AppUser {
   estimatedEarningsUsd?: number;
   // Game Zone — earned attribute points (code → points); feed the System panel.
   attributes?: Record<string, number>;
+  // Denormalized System XP (updateSystemXp Cloud Function); leaderboard sort key.
+  systemXp?: number;
 }
 
 export interface LiveStream {

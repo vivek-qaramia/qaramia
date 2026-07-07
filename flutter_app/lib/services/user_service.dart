@@ -57,6 +57,21 @@ class UserService {
     return doc.exists;
   }
 
+  /// All-time System-level leaderboard: users ranked by the denormalized
+  /// `systemXp` scalar (written by the updateSystemXp Cloud Function). Users
+  /// without the field are absent from the orderBy query — unranked until they
+  /// earn, which is correct for a leaderboard.
+  Stream<List<AppUser>> watchLeaderboard({int max = 50}) {
+    return _db
+        .collection('users')
+        .orderBy('systemXp', descending: true)
+        .limit(max)
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((d) => AppUser.fromJson({...d.data(), 'uid': d.id}))
+            .toList());
+  }
+
   Future<List<AppUser>> searchUsers(String query) async {
     if (query.isEmpty) return [];
     final snap = await _db

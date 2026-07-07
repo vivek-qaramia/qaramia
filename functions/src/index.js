@@ -24,6 +24,10 @@ exports.seedGiftCatalog = giftCatalog.seedGiftCatalog;
 const transcode = require('./transcode');
 exports.transcodeClipToMp4 = transcode.transcodeClipToMp4;
 
+// Denormalize System XP onto user docs so the leaderboard can sort by level.
+const systemXp = require('./systemXp');
+exports.updateSystemXp = systemXp.updateSystemXp;
+
 // Generate a short-lived Agora RTC token for a channel.
 // Called by both Flutter and Next.js clients before joining a stream.
 exports.getAgoraToken = functions.https.onCall(async (data, context) => {
