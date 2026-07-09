@@ -174,6 +174,20 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
 
       await _engine!.enableVideo();
       debugPrint('[GoLive] enableVideo done (camera permission prompt may have shown)');
+
+      // Pin a fixed portrait encoder output. Without this Agora defaults to
+      // adaptive orientation, so flipping front↔rear can hand the encoder
+      // different dimensions/orientation mid-stream — which stops the on-device
+      // MediaRecorder's mp4 muxer from writing further video frames (the clip
+      // freezes at the flip). A fixed 720×1280 portrait output stays constant
+      // across camera switches, so recording continues past the flip.
+      await _engine!.setVideoEncoderConfiguration(
+        const VideoEncoderConfiguration(
+          dimensions: VideoDimensions(width: 720, height: 1280),
+          orientationMode: OrientationMode.orientationModeFixedPortrait,
+        ),
+      );
+
       await _engine!.setClientRole(role: ClientRoleType.clientRoleBroadcaster);
 
       await _engine!.startPreview();
