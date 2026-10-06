@@ -28,17 +28,17 @@ class VideoTrimService {
     // -y          overwrite output if it exists
     // -i input    source
     // -ss / -to   trim window
-    // -c:v libx264 -preset veryfast -crf 26   compress for fast upload. The old
-    //              -preset ultrafast had no quality target and produced files
-    //              ~2-4x larger; veryfast+crf 26 roughly halves the size at no
-    //              visible quality loss while staying fast enough on-device.
+    // -c:v libx264 -preset fast -crf 21   quality-first re-encode. The old
+    //              veryfast+crf 26 stacked visible softness on top of Agora's
+    //              own lossy encode; crf 21 keeps detail at a larger file size
+    //              (if uploads get too slow, step crf back up toward 23).
     // -movflags +faststart   moves the moov atom to the front so playback can
     //              start before the whole file finishes downloading.
     // -c:a aac    audio re-encode (mic recordings are usually AAC already
     //              but a copy can fail when the cut isn't at a keyframe)
     final cmd =
         '-y -i "$inputPath" -ss $ss -to $to '
-        '-c:v libx264 -preset veryfast -crf 26 -movflags +faststart '
+        '-c:v libx264 -preset fast -crf 21 -movflags +faststart '
         '-c:a aac -b:a 128k "$outPath"';
     final session = await FFmpegKit.execute(cmd);
     final code = await session.getReturnCode();
@@ -62,7 +62,7 @@ class VideoTrimService {
     final outPath = '${tmp.path}/compress_${_uuid.v4()}.mp4';
     final cmd =
         '-y -i "$inputPath" '
-        '-c:v libx264 -preset veryfast -crf 26 -movflags +faststart '
+        '-c:v libx264 -preset fast -crf 21 -movflags +faststart '
         '-c:a aac -b:a 128k "$outPath"';
     final session = await FFmpegKit.execute(cmd);
     final code = await session.getReturnCode();

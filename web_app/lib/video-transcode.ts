@@ -87,13 +87,14 @@ export async function transcodeForUpload(
     (startMs > 50 || (durationMs != null && endMs < durationMs - 50));
 
   // -ss/-to AFTER -i = frame-accurate cut (matches the Flutter trim). Same
-  // encode settings as mobile: veryfast/crf 26, faststart, AAC 128k.
+  // crf as mobile (21), faststart, AAC 128k. Preset stays veryfast: this runs
+  // in ffmpeg.wasm, where slower presets are painfully slow.
   const args: string[] = ['-i', inName];
   if (trimmed) {
     args.push('-ss', (startMs! / 1000).toFixed(3), '-to', (endMs! / 1000).toFixed(3));
   }
   args.push(
-    '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '26',
+    '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '21',
     '-pix_fmt', 'yuv420p',
     '-movflags', '+faststart',
     '-c:a', 'aac', '-b:a', '128k',

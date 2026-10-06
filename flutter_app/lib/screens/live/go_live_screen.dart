@@ -184,6 +184,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       await _engine!.setVideoEncoderConfiguration(
         const VideoEncoderConfiguration(
           dimensions: VideoDimensions(width: 720, height: 1280),
+          frameRate: 30,
+          bitrate: 3000,
           orientationMode: OrientationMode.orientationModeFixedPortrait,
         ),
       );
