@@ -38,7 +38,7 @@ class VideoTrimService {
     //              but a copy can fail when the cut isn't at a keyframe)
     final cmd =
         '-y -i "$inputPath" -ss $ss -to $to '
-        '-c:v libx264 -preset fast -crf 21 -movflags +faststart '
+        '-c:v libx264 -preset fast -crf 21 -pix_fmt yuv420p -r 30 -movflags +faststart '
         '-c:a aac -b:a 128k "$outPath"';
     final session = await FFmpegKit.execute(cmd);
     final code = await session.getReturnCode();
@@ -62,7 +62,7 @@ class VideoTrimService {
     final outPath = '${tmp.path}/compress_${_uuid.v4()}.mp4';
     final cmd =
         '-y -i "$inputPath" '
-        '-c:v libx264 -preset fast -crf 21 -movflags +faststart '
+        '-c:v libx264 -preset fast -crf 21 -pix_fmt yuv420p -r 30 -movflags +faststart '
         '-c:a aac -b:a 128k "$outPath"';
     final session = await FFmpegKit.execute(cmd);
     final code = await session.getReturnCode();
