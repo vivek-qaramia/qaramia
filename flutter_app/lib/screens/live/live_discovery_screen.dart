@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../theme/brand.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../providers/providers.dart';
 import '../../models/live_stream.dart';
 import 'live_viewer_screen.dart';
 import 'go_live_screen.dart';
+import 'post_stream_editor_screen.dart';
 
 class LiveDiscoveryScreen extends ConsumerWidget {
   const LiveDiscoveryScreen({super.key});
@@ -18,6 +20,23 @@ class LiveDiscoveryScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Live', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
+          // Native camera app records at full sensor quality (unlike the
+          // Agora live recording), then hands the clip to the same editor.
+          TextButton.icon(
+            onPressed: () async {
+              final nav = Navigator.of(context);
+              final clip = await ImagePicker().pickVideo(
+                source: ImageSource.camera,
+                maxDuration: const Duration(minutes: 3),
+              );
+              if (clip == null) return;
+              nav.push(MaterialPageRoute(
+                builder: (_) => PostStreamEditorScreen(recordingPath: clip.path),
+              ));
+            },
+            icon: const Icon(Icons.fiber_manual_record, color: Color(0xFF3830CC)),
+            label: const Text('Record', style: TextStyle(color: Color(0xFF3830CC), fontWeight: FontWeight.bold)),
+          ),
           TextButton.icon(
             onPressed: () => Navigator.push(
               context,
