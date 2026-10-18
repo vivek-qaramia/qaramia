@@ -26,6 +26,11 @@ class VideoService {
         .toList();
   }
 
+  Future<Video> fetchVideo(String id) async {
+    final doc = await _db.collection('videos').doc(id).get();
+    return Video.fromJson({...doc.data()!, 'id': doc.id});
+  }
+
   Future<void> likeVideo(String videoId, String uid) async {
     final batch = _db.batch();
     batch.set(

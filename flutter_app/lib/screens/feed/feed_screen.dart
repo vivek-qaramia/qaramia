@@ -5,6 +5,7 @@ import '../../models/video.dart';
 import '../../providers/providers.dart';
 import '../../screens/live/post_stream_editor_screen.dart' show composeVideo;
 import '../../theme/brand.dart';
+import '../stitch/stitch_screens.dart';
 
 class FeedScreen extends ConsumerWidget {
   const FeedScreen({super.key});
@@ -160,7 +161,15 @@ class _VideoCardState extends ConsumerState<VideoCard> {
         Positioned(
           right: 12,
           bottom: 100,
-          child: _ActionColumn(video: widget.video, liked: _liked, onLike: _toggleLike),
+          child: _ActionColumn(
+            video: widget.video,
+            liked: _liked,
+            onLike: _toggleLike,
+            // Can't ask yourself for permission; the rules reject it too.
+            onStitch: widget.video.authorUid == ref.watch(authStateProvider).valueOrNull?.uid
+                ? null
+                : () => showRequestStitchSheet(context, widget.video, _ctrl.value.duration),
+          ),
         ),
 
         // Bottom info
@@ -175,6 +184,11 @@ class _VideoCardState extends ConsumerState<VideoCard> {
                 '@${widget.video.authorUsername}',
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
               ),
+              if (widget.video.stitchedFrom.isNotEmpty)
+                Text(
+                  'with ${widget.video.stitchedFrom.map((s) => '@${s['authorUsername']}').join(', ')}',
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                ),
               const SizedBox(height: 4),
               Text(
                 widget.video.caption,
@@ -205,8 +219,14 @@ class _ActionColumn extends StatelessWidget {
   final Video video;
   final bool liked;
   final VoidCallback onLike;
+  final VoidCallback? onStitch;
 
-  const _ActionColumn({required this.video, required this.liked, required this.onLike});
+  const _ActionColumn({
+    required this.video,
+    required this.liked,
+    required this.onLike,
+    this.onStitch,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -242,6 +262,10 @@ class _ActionColumn extends StatelessWidget {
           label: _fmt(video.shareCount),
           onTap: () {},
         ),
+        if (onStitch != null) ...[
+          const SizedBox(height: 20),
+          _ActionBtn(icon: Icons.call_merge, label: 'Stitch', onTap: onStitch!),
+        ],
       ],
     );
   }

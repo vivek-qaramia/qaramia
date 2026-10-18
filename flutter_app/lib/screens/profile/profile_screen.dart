@@ -11,6 +11,7 @@ import '../feed/feed_screen.dart' show VideoCard;
 import '../game_zone/game_zone_screen.dart';
 import '../leaderboard/leaderboard_screen.dart';
 import '../studio/ads_screen.dart';
+import '../stitch/stitch_screens.dart';
 import '../../widgets/wallet_badge.dart';
 
 // Self profile (uses current auth user)
@@ -98,6 +99,13 @@ class ProfileScreen extends ConsumerWidget {
                     const Padding(
                       padding: EdgeInsets.only(right: 4),
                       child: Center(child: WalletBadge()),
+                    ),
+                    IconButton(
+                      tooltip: 'Stitch requests',
+                      icon: const Icon(Icons.call_merge),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const StitchInboxScreen()),
+                      ),
                     ),
                     IconButton(
                       tooltip: 'Manage ads',

@@ -32,6 +32,7 @@ class VideoUploadService {
     double vignetteIntensity = 0,
     List<TextOverlay> textOverlays = const [],
     List<StickerOverlay> stickers = const [],
+    List<Map<String, dynamic>> stitchedFrom = const [],
     void Function(double progress)? onProgress,
   }) async {
     final videoId = _uuid.v4();
@@ -93,6 +94,7 @@ class VideoUploadService {
       'vignetteIntensity': vignetteIntensity,
       'textOverlays': textOverlays.map((t) => t.toJson()).toList(),
       'stickers': stickers.map((s) => s.toJson()).toList(),
+      'stitchedFrom': stitchedFrom,
       'createdAt': FieldValue.serverTimestamp(),
     });
 

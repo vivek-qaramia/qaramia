@@ -3,11 +3,13 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../models/video.dart' show StickerOverlay, TextOverlay, ZoomMarker;
 import '../../models/video_filter.dart';
 import '../../providers/providers.dart';
+import '../../services/effects_overlay_renderer.dart';
 import '../../services/video_trim_service.dart';
 import '../../services/video_upload_service.dart';
 import '../../theme/brand.dart';
@@ -158,10 +160,14 @@ class PostStreamEditorScreen extends ConsumerStatefulWidget {
   // Pre-fill the caption field with the stream's title so the host doesn't
   // have to retype it. Editable in the publish dialog.
   final String initialCaption;
+  // Set when the recording is a stitch of other users' clips (credit shown
+  // on the published video).
+  final List<Map<String, dynamic>> stitchedFrom;
   const PostStreamEditorScreen({
     super.key,
     required this.recordingPath,
     this.initialCaption = '',
+    this.stitchedFrom = const [],
   });
 
   @override
@@ -178,6 +184,9 @@ class _PostStreamEditorScreenState extends ConsumerState<PostStreamEditorScreen>
   String _filterId = 'none';
   // Trim window. Both values are in milliseconds. _endMs is initialised to
   // the full duration once the video reports its metadata.
+  // The window can never exceed _maxClipMs, so gallery imports longer than
+  // 3 minutes must be trimmed before they can be published.
+  static const double _maxClipMs = 180000;
   double _startMs = 0;
   double _endMs = 0;
   // Zero or more zoom markers, sorted by timeMs. Each timestamp is relative
@@ -212,7 +221,7 @@ class _PostStreamEditorScreenState extends ConsumerState<PostStreamEditorScreen>
       if (!mounted) return;
       setState(() {
         _initialized = true;
-        _endMs = _ctrl.value.duration.inMilliseconds.toDouble();
+        _endMs = _ctrl.value.duration.inMilliseconds.toDouble().clamp(0, _maxClipMs);
       });
       // We handle looping manually inside the trim window via the listener
       // below — VideoPlayer's setLooping(true) loops the whole file.
@@ -267,6 +276,116 @@ class _PostStreamEditorScreenState extends ConsumerState<PostStreamEditorScreen>
     if (mounted) Navigator.of(context).pop();
   }
 
+  bool get _hasEffects =>
+      VideoFilter.byId(_filterId).hasColorOverlay ||
+      _zooms.isNotEmpty ||
+      _blurAmount > 0 ||
+      _vignetteIntensity > 0 ||
+      _texts.isNotEmpty ||
+      _stickers.isNotEmpty;
+
+  /// Trims (when the window was narrowed) or compresses the recording into a
+  /// temp mp4, then burns in any editor effects. Used for both Publish and
+  /// Share so the feed and the exported file look identical. Caller deletes
+  /// the returned file.
+  Future<File> _encode() async {
+    final service = VideoTrimService();
+    final totalMs = _ctrl.value.duration.inMilliseconds;
+    final isTrimmed = _startMs > 50 || _endMs < totalMs - 50;
+    final base = File(isTrimmed
+        ? await service.trim(
+            inputPath: widget.recordingPath,
+            start: Duration(milliseconds: _startMs.toInt()),
+            end: Duration(milliseconds: _endMs.toInt()),
+          )
+        : await service.compress(inputPath: widget.recordingPath));
+    if (!_hasEffects) return base;
+
+    final pngs = <String>[];
+    try {
+      // The trimmed file keeps the source's dimensions; video_player reports
+      // them already rotated.
+      final size = _ctrl.value.size;
+      final w = size.width.toInt(), h = size.height.toInt();
+      if (w <= 0 || h <= 0) throw Exception('Unknown video size');
+
+      // Effect times are captured against the ORIGINAL recording; the trimmed
+      // file starts at _startMs, so shift by -_startMs. Zooms must fit fully
+      // inside the window; text/stickers are clamped to it.
+      final length = _endMs - _startMs;
+      final zooms = [
+        for (final z in _zooms)
+          if (z.timeMs - _startMs >= 0 && z.timeMs - _startMs + z.durationMs <= length)
+            ZoomMarker(
+                timeMs: z.timeMs - _startMs, scale: z.scale, durationMs: z.durationMs),
+      ];
+      final overlays = <({String png, double startMs, double endMs})>[];
+      Future<void> addOverlay(double start, double end, Future<String> Function() draw) async {
+        final s = (start - _startMs).clamp(0.0, length);
+        final e = (end - _startMs).clamp(0.0, length);
+        if (e <= s) return;
+        final png = await draw();
+        pngs.add(png);
+        overlays.add((png: png, startMs: s, endMs: e));
+      }
+
+      for (final t in _texts) {
+        await addOverlay(t.startMs, t.endMs, () => EffectsOverlayRenderer.text(t.text, w, h));
+      }
+      // Stickers last so they sit on top of text, as in the preview.
+      for (final s in _stickers) {
+        await addOverlay(s.startMs, s.endMs, () => EffectsOverlayRenderer.sticker(s.emoji, w, h));
+      }
+      String? vignette;
+      if (_vignetteIntensity > 0) {
+        vignette = await EffectsOverlayRenderer.vignette(w, h, _vignetteIntensity);
+        pngs.add(vignette);
+      }
+
+      final baked = await service.bakeEffects(
+        inputPath: base.path,
+        width: w,
+        height: h,
+        colorMatrix: VideoFilter.byId(_filterId).colorMatrix,
+        blurSigma: _blurAmount * EffectsOverlayRenderer.scaleFor(w),
+        zooms: zooms,
+        vignettePng: vignette,
+        overlays: overlays,
+      );
+      return File(baked);
+    } finally {
+      try { await base.delete(); } catch (_) {}
+      for (final p in pngs) {
+        try { await File(p).delete(); } catch (_) {}
+      }
+    }
+  }
+
+  /// Opens the native share sheet (Instagram, YouTube, TikTok, …) with the
+  /// finished clip, effects included.
+  Future<void> _share() async {
+    if (_processing) return;
+    setState(() {
+      _processing = true;
+      _stage = 'Preparing…';
+      _uploadProgress = 0;
+    });
+    await _ctrl.pause();
+    File? file;
+    try {
+      file = await _encode();
+      await Share.shareXFiles([XFile(file.path, mimeType: 'video/mp4')]);
+    } catch (e) {
+      _showError('Share failed: $e');
+    } finally {
+      try { await file?.delete(); } catch (_) {}
+      if (mounted) {
+        setState(() => _processing = false);
+        await _ctrl.play();
+      }
+    }
+  }
+
   Future<void> _publish() async {
     if (_processing) return;
     final user = ref.read(authStateProvider).valueOrNull;
@@ -294,77 +413,19 @@ class _PostStreamEditorScreenState extends ConsumerState<PostStreamEditorScreen>
       // Re-encode before upload so we never send the large raw recording.
       // When the user narrowed the window we trim (which also compresses);
       // otherwise we compress the full clip. Either way the upload is smaller.
-      final totalMs = _ctrl.value.duration.inMilliseconds;
-      final isTrimmed = _startMs > 50 || _endMs < totalMs - 50;
-      final fileToUpload = isTrimmed
-          ? trimmedFile = File(await VideoTrimService().trim(
-              inputPath: widget.recordingPath,
-              start: Duration(milliseconds: _startMs.toInt()),
-              end: Duration(milliseconds: _endMs.toInt()),
-            ))
-          : trimmedFile = File(await VideoTrimService().compress(
-              inputPath: widget.recordingPath,
-            ));
+      final fileToUpload = trimmedFile = await _encode();
 
       if (mounted) setState(() => _stage = 'Uploading…');
 
-      // Each zoom marker is captured against the ORIGINAL recording. After
-      // trim, the published file starts at _startMs, so shift every marker
-      // by -_startMs and drop any whose window now falls outside [0, length].
-      final length = _endMs - _startMs;
-      final publishedZooms = <ZoomMarker>[];
-      for (final z in _zooms) {
-        final shifted = z.timeMs - _startMs;
-        if (shifted >= 0 && shifted + z.durationMs <= length) {
-          publishedZooms.add(ZoomMarker(
-            timeMs: shifted,
-            scale: z.scale,
-            durationMs: z.durationMs,
-          ));
-        }
-      }
-
-      // Translate text overlays the same way as zooms: shift by -_startMs
-      // and drop any whose window leaves the trimmed range. Allow partial
-      // overlaps to be clamped to the visible window so a text that starts
-      // before the trim still shows from the trim point onward.
-      final publishedTexts = <TextOverlay>[];
-      for (final t in _texts) {
-        final shiftedStart = (t.startMs - _startMs).clamp(0.0, length);
-        final shiftedEnd = (t.endMs - _startMs).clamp(0.0, length);
-        if (shiftedEnd > shiftedStart) {
-          publishedTexts.add(TextOverlay(
-            text: t.text,
-            startMs: shiftedStart,
-            endMs: shiftedEnd,
-          ));
-        }
-      }
-      final publishedStickers = <StickerOverlay>[];
-      for (final s in _stickers) {
-        final shiftedStart = (s.startMs - _startMs).clamp(0.0, length);
-        final shiftedEnd = (s.endMs - _startMs).clamp(0.0, length);
-        if (shiftedEnd > shiftedStart) {
-          publishedStickers.add(StickerOverlay(
-            emoji: s.emoji,
-            startMs: shiftedStart,
-            endMs: shiftedEnd,
-          ));
-        }
-      }
-
+      // Effects are baked into the file by _encode, so no effect metadata is
+      // stored — the feed would otherwise apply them a second time.
       await VideoUploadService().uploadAndPublish(
         file: fileToUpload,
         authorUid: user.uid,
         authorUsername: currentUser.username,
         authorAvatarUrl: currentUser.avatarUrl,
         caption: _captionCtrl.text.trim(),
-        filterId: _filterId,
-        zooms: publishedZooms,
-        blurAmount: _blurAmount,
-        vignetteIntensity: _vignetteIntensity,
-        textOverlays: publishedTexts,
-        stickers: publishedStickers,
+        stitchedFrom: widget.stitchedFrom,
         onProgress: (p) {
           if (mounted) setState(() => _uploadProgress = p);
         },
@@ -462,6 +523,15 @@ class _PostStreamEditorScreenState extends ConsumerState<PostStreamEditorScreen>
                           controller: _ctrl,
                           onChanged: (s, e) {
                             setState(() {
+                              // Over the cap: the handle being dragged pushes
+                              // the other one along to keep the window ≤ 3 min.
+                              if (e - s > _maxClipMs) {
+                                if (s != _startMs) {
+                                  e = s + _maxClipMs;
+                                } else {
+                                  s = e - _maxClipMs;
+                                }
+                              }
                               _startMs = s;
                               _endMs = e;
                             });
@@ -611,6 +681,12 @@ class _PostStreamEditorScreenState extends ConsumerState<PostStreamEditorScreen>
                                         ),
                                         child: const Text('Discard'),
                                       ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    IconButton.outlined(
+                                      onPressed: _share,
+                                      tooltip: 'Share to Instagram, YouTube, TikTok…',
+                                      icon: const Icon(Icons.ios_share),
                                     ),
                                     const SizedBox(width: 12),
                                     Expanded(

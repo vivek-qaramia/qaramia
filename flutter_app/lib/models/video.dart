@@ -100,6 +100,9 @@ class Video {
   final List<TextOverlay> textOverlays;
   // Emoji stickers shown over the video at their respective time windows.
   final List<StickerOverlay> stickers;
+  // Source clips this video was stitched from: {videoId, authorUid,
+  // authorUsername}. Empty for ordinary videos.
+  final List<Map<String, dynamic>> stitchedFrom;
   final DateTime createdAt;
 
   const Video({
@@ -122,6 +125,7 @@ class Video {
     this.vignetteIntensity = 0,
     this.textOverlays = const [],
     this.stickers = const [],
+    this.stitchedFrom = const [],
     required this.createdAt,
   });
 
@@ -174,6 +178,10 @@ class Video {
               ?.map((e) => StickerOverlay.fromJson(Map<String, dynamic>.from(e as Map)))
               .toList() ??
           const [],
+      stitchedFrom: (json['stitchedFrom'] as List?)
+              ?.map((e) => Map<String, dynamic>.from(e as Map))
+              .toList() ??
+          const [],
       createdAt: (json['createdAt'] as Timestamp).toDate(),
     );
   }
@@ -198,6 +206,7 @@ class Video {
         'vignetteIntensity': vignetteIntensity,
         'textOverlays': textOverlays.map((t) => t.toJson()).toList(),
         'stickers': stickers.map((s) => s.toJson()).toList(),
+        'stitchedFrom': stitchedFrom,
         'createdAt': Timestamp.fromDate(createdAt),
       };
 }

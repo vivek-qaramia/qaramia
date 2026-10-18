@@ -37,6 +37,20 @@ class LiveDiscoveryScreen extends ConsumerWidget {
             icon: const Icon(Icons.fiber_manual_record, color: Color(0xFF3830CC)),
             label: const Text('Record', style: TextStyle(color: Color(0xFF3830CC), fontWeight: FontWeight.bold)),
           ),
+          // Gallery import. No duration cap here — the editor's trim bar
+          // limits the published window to 3 minutes.
+          TextButton.icon(
+            onPressed: () async {
+              final nav = Navigator.of(context);
+              final clip = await ImagePicker().pickVideo(source: ImageSource.gallery);
+              if (clip == null) return;
+              nav.push(MaterialPageRoute(
+                builder: (_) => PostStreamEditorScreen(recordingPath: clip.path),
+              ));
+            },
+            icon: const Icon(Icons.video_library, color: Color(0xFF3830CC)),
+            label: const Text('Import', style: TextStyle(color: Color(0xFF3830CC), fontWeight: FontWeight.bold)),
+          ),
           TextButton.icon(
             onPressed: () => Navigator.push(
               context,

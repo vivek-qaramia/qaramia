@@ -3,11 +3,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/app_user.dart';
 import '../models/live_stream.dart';
 import '../models/video.dart';
+import '../models/stitch_request.dart';
 import '../models/chat_message.dart';
 import '../models/gift.dart';
 import '../services/auth_service.dart';
 import '../services/stream_service.dart';
 import '../services/video_service.dart';
+import '../services/stitch_service.dart';
 import '../services/user_service.dart';
 import '../services/danmaku_service.dart';
 import '../services/gift_catalog_service.dart';
@@ -21,6 +23,11 @@ import '../models/game.dart';
 final authServiceProvider = Provider((ref) => AuthService());
 final streamServiceProvider = Provider((ref) => StreamService());
 final videoServiceProvider = Provider((ref) => VideoService());
+final stitchServiceProvider = Provider((ref) => StitchService());
+final stitchIncomingProvider = StreamProvider.family<List<StitchRequest>, String>(
+    (ref, uid) => ref.watch(stitchServiceProvider).watchIncoming(uid));
+final stitchSentProvider = StreamProvider.family<List<StitchRequest>, String>(
+    (ref, uid) => ref.watch(stitchServiceProvider).watchSent(uid));
 final userServiceProvider = Provider((ref) => UserService());
 final danmakuServiceProvider = Provider((ref) => DanmakuService());
 final giftCatalogServiceProvider = Provider((ref) => GiftCatalogService());
